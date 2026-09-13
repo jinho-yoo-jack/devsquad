@@ -1,0 +1,31 @@
+# secrets
+.env
+*.pem
+*.key
+
+# java
+control-plane/build/
+control-plane/.gradle/
+control-plane/out/
+*.class
+
+# python
+agent-runtime/.venv/
+agent-runtime/__pycache__/
+**/__pycache__/
+*.pyc
+agent-runtime/.pytest_cache/
+agent-runtime/workspace/
+
+# node
+web/node_modules/
+web/.next/
+web/out/
+web/coverage/
+web/test-results/
+web/playwright-report/
+
+# ide / os
+.idea/
+.vscode/
+.DS_Store

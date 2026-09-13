@@ -1,0 +1,37 @@
+/* 12-디자인 §5 디자인 토큰. dark 기본, light 는 data-theme 로 전환 */
+:root {
+  --role-planner: #8b7cf6;
+  --role-designer: #f472b6;
+  --role-frontend: #38bdf8;
+  --role-backend: #34d399;
+  --role-reviewer: #fbbf24;
+  --role-publisher: #a3a3a3;
+
+  --status-pending: #6b7280;
+  --status-running: #3b82f6;
+  --status-waiting: #f59e0b;
+  --status-done: #10b981;
+  --status-rejected: #f97316;
+  --status-failed: #ef4444;
+
+  --bg: #0b0f14;
+  --surface-1: #111826;
+  --surface-2: #182130;
+  --border: #26313f;
+  --text-1: #e5e7eb;
+  --text-2: #9ca3af;
+
+  --font-sans: Inter, Pretendard, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --radius: 6px;
+  --radius-card: 8px;
+}
+
+:root[data-theme="light"] {
+  --bg: #ffffff;
+  --surface-1: #f7f8fa;
+  --surface-2: #eef0f4;
+  --border: #e2e5ea;
+  --text-1: #111827;
+  --text-2: #6b7280;
+}

@@ -1,0 +1,53 @@
+# DevSquad 파이프라인 (조직도)
+# - stages 는 DAG. depends_on 이 같은 Stage 는 병렬 실행된다.
+# - agent 는 .devsquad/agents/<agent>/ 폴더명.
+# - approvals: [plan, deliverable] 중 선택. 비우면 승인 없이 진행 (publisher 등).
+# - 팀원을 빼고 싶으면 Stage 를 지우고 depends_on 만 고치면 된다.
+#   예) 디자이너가 없는 팀: design Stage 삭제, frontend/backend 의 depends_on 을 [planning] 으로.
+
+version: 1
+
+stages:
+  - id: planning
+    agent: planner
+    approvals: [plan, deliverable]
+
+  - id: design
+    agent: designer
+    depends_on: [planning]
+    approvals: [plan, deliverable]
+
+  - id: backend
+    agent: backend
+    depends_on: [design]          # API 명세는 화면 설계를 본 뒤 확정
+    approvals: [plan, deliverable]
+
+  - id: frontend
+    agent: frontend
+    depends_on: [design]          # backend 와 병렬. API 명세는 review 에서 대조
+    approvals: [plan, deliverable]
+
+  # 확장 예시: QA 팀원을 추가하면 이렇게 끼운다 (기본은 주석)
+  # - id: qa
+  #   agent: qa
+  #   depends_on: [frontend, backend]
+  #   approvals: [plan, deliverable]
+
+  - id: review
+    agent: reviewer
+    depends_on: [frontend, backend]
+    approvals: [deliverable]      # 검수는 계획 승인 없이 바로 실행
+
+  - id: pr
+    agent: publisher              # 서비스 내장 팀원. agents/ 폴더 불필요
+    depends_on: [review]
+    approvals: []
+
+policy:
+  max_retries_per_approval: 3
+  token_budget: 2000000
+  execute_max_iterations: 40
+  default_model: anthropic/claude-sonnet-4-5
+  pr:
+    mode: per-role                # per-role | single
+    base_branch: main

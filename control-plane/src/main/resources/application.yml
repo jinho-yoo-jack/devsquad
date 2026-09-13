@@ -1,0 +1,35 @@
+spring:
+  application:
+    name: control-plane
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/devsquad}
+    username: ${SPRING_DATASOURCE_USERNAME:devsquad}
+    password: ${SPRING_DATASOURCE_PASSWORD:${POSTGRES_PASSWORD:devsquad}}
+  jpa:
+    hibernate:
+      ddl-auto: validate          # 스키마는 Flyway 만 변경한다 (14-Backend A.3)
+    open-in-view: false
+  flyway:
+    enabled: true
+    schemas: public
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: 6379
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+
+devsquad:
+  agent-runtime:
+    url: ${DEVSQUAD_AGENT_RUNTIME_URL:http://localhost:8100}
+    internal-token: ${DEVSQUAD_INTERNAL_TOKEN:dev-internal-token}
+  events:
+    stream-key: devsquad:events
+    consumer-group: control-plane

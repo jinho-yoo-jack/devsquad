@@ -1,0 +1,61 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: devsquad
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-devsquad}
+      POSTGRES_DB: devsquad
+    ports: ["5432:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U devsquad"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  control-plane:
+    build: ../control-plane
+    env_file: .env
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/devsquad
+      SPRING_DATA_REDIS_HOST: redis
+      DEVSQUAD_AGENT_RUNTIME_URL: http://agent-runtime:8100
+    ports: ["8080:8080"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    profiles: ["full"]
+
+  agent-runtime:
+    build: ../agent-runtime
+    env_file: .env
+    environment:
+      DEVSQUAD_DB_URL: postgresql://devsquad:${POSTGRES_PASSWORD:-devsquad}@postgres:5432/devsquad
+      DEVSQUAD_REDIS_URL: redis://redis:6379/0
+    ports: ["8100:8100"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    profiles: ["full"]
+
+  web:
+    build: ../web
+    environment:
+      CONTROL_PLANE_URL: http://control-plane:8080
+    ports: ["3000:3000"]
+    depends_on: [control-plane]
+    profiles: ["full"]
+
+volumes:
+  pgdata:
