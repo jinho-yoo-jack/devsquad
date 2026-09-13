@@ -14,6 +14,7 @@ public class Project {
     @Column(name = "default_branch", nullable = false) private String defaultBranch = "main";
     @Column(name = "installation_id") private Long installationId;
     @Column(name = "context_path", nullable = false) private String contextPath = ".devsquad";
+    @Column(name = "local_path") private String localPath;
     @Column(name = "token_budget", nullable = false) private long tokenBudget = 2_000_000L;
     @Column(name = "created_at", nullable = false, updatable = false) private Instant createdAt = Instant.now();
 
@@ -30,6 +31,8 @@ public class Project {
     public String getDefaultBranch() { return defaultBranch; }
     public Long getInstallationId() { return installationId; }
     public String getContextPath() { return contextPath; }
+    public String getLocalPath() { return localPath; }
+    public void setLocalPath(String v) { this.localPath = v; }
     public long getTokenBudget() { return tokenBudget; }
     public Instant getCreatedAt() { return createdAt; }
     public void setDefaultBranch(String v) { this.defaultBranch = v; }

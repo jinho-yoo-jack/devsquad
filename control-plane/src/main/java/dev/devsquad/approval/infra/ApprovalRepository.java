@@ -7,6 +7,7 @@ import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ApprovalRepository extends JpaRepository<Approval, UUID> {
+    List<Approval> findByTaskId(UUID taskId);
     List<Approval> findByTaskIdAndStatus(UUID taskId, ApprovalStatus status);
     List<Approval> findByStatusOrderByRequestedAtAsc(ApprovalStatus status);
     List<Approval> findByResumePendingTrue(); // RunRecoveryJob 재전송 대상

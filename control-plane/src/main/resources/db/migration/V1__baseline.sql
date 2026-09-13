@@ -9,6 +9,7 @@ create table project (
   default_branch   text not null default 'main',
   installation_id  bigint,
   context_path     text not null default '.devsquad',
+  local_path       text,            -- Phase 1: 로컬 디렉토리 프로젝트 (Phase 2 부터 GitHub clone)
   token_budget     bigint not null default 2000000,
   created_at       timestamptz not null default now()
 );

@@ -84,10 +84,19 @@ class ResumeRequest(BaseModel):
     edited_content: str | None = None
 
 
+class StageInfo(BaseModel):
+    id: str
+    agent: str
+    depends_on: list[str]
+    approvals: list[str]
+
+
 class Accepted(BaseModel):
     task_id: str
     thread_id: str
     status: str = "accepted"
+    stages: list[StageInfo] = Field(default_factory=list)
+    levels: list[list[str]] = Field(default_factory=list)
 
 
 # ---- 엔드포인트 -------------------------------------------------------------
@@ -103,14 +112,19 @@ def health(request: Request) -> HealthResponse:
 @app.post("/runs", status_code=status.HTTP_202_ACCEPTED, response_model=Accepted, dependencies=[Depends(require_internal)])
 async def create_run(body: RunRequest, mgr: RunManager = Depends(runs)) -> Accepted:
     try:
-        await mgr.start(body.task_id, body.command, body.project.model_dump())
+        entry = await mgr.start(body.task_id, body.command, body.project.model_dump())
     except RunBusy:
         raise HTTPException(status.HTTP_409_CONFLICT, detail="run already active") from None
     except (PipelineError, AgentDefinitionError) as e:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail={"code": "PIPELINE_INVALID", "message": str(e)}) from None
     except (FileNotFoundError, ValueError) as e:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail={"code": "PROJECT_INVALID", "message": str(e)}) from None
-    return Accepted(task_id=body.task_id, thread_id=body.task_id)
+    p = entry.pipeline
+    return Accepted(
+        task_id=body.task_id, thread_id=body.task_id,
+        stages=[StageInfo(id=s.id, agent=s.agent, depends_on=s.depends_on, approvals=list(s.approvals)) for s in p.stages],
+        levels=p.levels(),
+    )
 
 
 @app.post("/runs/{task_id}/resume", status_code=status.HTTP_202_ACCEPTED, response_model=Accepted, dependencies=[Depends(require_internal)])

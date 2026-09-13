@@ -38,6 +38,16 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(ApiError.of("FEEDBACK_REQUIRED", e.getMessage()));
     }
 
+    @ExceptionHandler(NotFoundException.class)
+    ResponseEntity<ApiError> notFound(NotFoundException e) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiError.of(e.code(), e.getMessage()));
+    }
+
+    @ExceptionHandler(RuntimeUnavailableException.class)
+    ResponseEntity<ApiError> runtimeUnavailable(RuntimeUnavailableException e) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(ApiError.of("RUNTIME_UNAVAILABLE", e.getMessage()));
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     ResponseEntity<ApiError> badRequest(IllegalArgumentException e) {
         return ResponseEntity.badRequest().body(ApiError.of("BAD_REQUEST", e.getMessage()));

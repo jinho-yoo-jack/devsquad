@@ -66,6 +66,8 @@ def test_phase1_flow_over_http(client, sample_project):
     r = client.post("/runs", json={"task_id": task_id, "command": "다크 모드 토글 추가",
                                    "project": {"local_path": str(sample_project)}}, headers=TOKEN)
     assert r.status_code == 202, r.text
+    assert r.json()["stages"] == [{"id": "planning", "agent": "planner", "depends_on": [], "approvals": ["plan", "deliverable"]}]
+    assert r.json()["levels"] == [["planning"]]
     out = _wait(client, task_id)
     assert out.status == "waiting_approval" and out.interrupts[0]["kind"] == "plan"
 

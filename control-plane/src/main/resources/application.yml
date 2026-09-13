@@ -1,6 +1,9 @@
 spring:
   application:
     name: control-plane
+  jackson:
+    property-naming-strategy: SNAKE_CASE     # 15-API 명세: 외부/내부 JSON 모두 snake_case
+    default-property-inclusion: always
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/devsquad}
     username: ${SPRING_DATASOURCE_USERNAME:devsquad}
@@ -27,6 +30,8 @@ management:
         include: health,info,metrics
 
 devsquad:
+  recovery:
+    interval-ms: 300000
   agent-runtime:
     url: ${DEVSQUAD_AGENT_RUNTIME_URL:http://localhost:8100}
     internal-token: ${DEVSQUAD_INTERNAL_TOKEN:dev-internal-token}

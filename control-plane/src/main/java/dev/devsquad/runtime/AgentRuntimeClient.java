@@ -30,7 +30,7 @@ public class AgentRuntimeClient {
             .build();
     }
 
-    // ---- 요청/응답 DTO -----------------------------------------------------
+    // ---- 요청/응답 DTO (JSON 은 전역 SNAKE_CASE 설정으로 직렬화) -----------------
 
     public record ProjectRef(String owner, String repo, String branch, String installationToken, String contextPath, String localPath) {}
 
@@ -38,16 +38,18 @@ public class AgentRuntimeClient {
 
     public record ResumeRequest(UUID approvalId, String decision, String feedback, String editedContent) {}
 
-    public record RunAccepted(UUID taskId, String threadId) {}
+    public record StageInfo(String id, String agent, List<String> dependsOn, List<String> approvals) {}
+
+    public record RunAccepted(UUID taskId, String threadId, String status, List<StageInfo> stages, List<List<String>> levels) {}
 
     public record Interrupt(String id, Map<String, Object> value) {}
 
-    public record RunState(List<String> next, List<Interrupt> interrupts, boolean active, String checkpointId,
-                           Map<String, Object> valuesSummary) {
-        /** 승인 대기 중 = interrupt 가 있고 다음 노드가 없다. */
+    public record RunState(UUID taskId, List<String> next, List<Interrupt> interrupts, boolean active, String checkpointId,
+                           Map<String, Object> valuesSummary, String lastOutcome, List<String> history) {
+        /** 승인 대기 중 = interrupt 가 있다. */
         public boolean isWaitingApproval() { return interrupts != null && !interrupts.isEmpty(); }
-        /** 실행이 중간에 끊겼다 = 다음 노드가 있는데 active 가 아니다 → POST /continue 로 복구. */
-        public boolean isStranded() { return next != null && !next.isEmpty() && !active; }
+        /** 실행이 중간에 끊겼다 = 다음 노드가 있는데 active 가 아니고 interrupt 도 없다 → POST /continue 로 복구. */
+        public boolean isStranded() { return next != null && !next.isEmpty() && !active && !isWaitingApproval(); }
     }
 
     public record Health(String status, int activeRuns) {}
