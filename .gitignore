@@ -29,3 +29,7 @@ web/playwright-report/
 .idea/
 .vscode/
 .DS_Store
+
+# next build artifacts
+web/tsconfig.tsbuildinfo
+web/next-env.d.ts
