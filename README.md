@@ -10,7 +10,7 @@
 
 <br/>
 
-[![CI](https://github.com/jinho-yoo-jack/devsquad/actions/workflows/ci.yml/badge.svg)](https://github.com/jinho-yoo-jack/devsquad/actions/workflows/ci.yml)
+[![CI](https://github.com/jinho-yoo-jack/devsquad/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/jinho-yoo-jack/devsquad/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-10B981.svg)](LICENSE)
 [![Status: Phase 0](https://img.shields.io/badge/Status-Phase%200%20%C2%B7%20Skeleton-F59E0B.svg)](docs/16-구현-로드맵.md)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.4-6DB33F?logo=springboot&logoColor=white)](control-plane/)
