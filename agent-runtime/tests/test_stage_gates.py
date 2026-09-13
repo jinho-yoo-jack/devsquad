@@ -59,13 +59,13 @@ def test_happy_path_two_approvals(tmp_path):
     d = _interrupt(r)
     assert d["kind"] == "deliverable" and d["deliverable_ref"].startswith("docs/spec/")
     assert (tmp_path / d["deliverable_ref"]).exists()
-    assert len(llm.calls) == 2  # execute 1회 — gate 재실행이 LLM 을 다시 부르지 않음
+    assert len(llm.calls) == 3  # execute = tool-call 턴 + 마무리 턴. gate 재실행이 LLM 을 다시 부르지 않음
 
     r = g.invoke(Command(resume={"decision": "approve"}), cfg)
     assert "__interrupt__" not in r
     res = r["results"]["planning"]
     assert res["approved"] is True and res["retries"] == 0
-    assert len(llm.calls) == 2
+    assert len(llm.calls) == 3
 
 
 def test_reject_plan_then_resubmit_with_feedback(tmp_path):
@@ -102,7 +102,7 @@ def test_reject_deliverable_reexecutes_only(tmp_path):
     r = g.invoke(Command(resume={"decision": "reject", "feedback": "예외 흐름 빠짐"}), cfg)
     d = _interrupt(r)
     assert d["kind"] == "deliverable" and d["retry_no"] == 1
-    assert len(llm.calls) == calls_before + 1  # execute 만 다시, plan 은 안 함
+    assert len(llm.calls) == calls_before + 2  # execute(2턴) 만 다시, plan 은 안 함
     assert "예외 흐름 빠짐" in d["content"]
 
 
@@ -125,7 +125,7 @@ def test_no_plan_gate_when_not_requested(tmp_path):
     r = _start(g, cfg)
     d = _interrupt(r)
     assert d["kind"] == "deliverable"  # plan gate 없이 바로 실행됨
-    assert len(llm.calls) == 2
+    assert len(llm.calls) == 3
 
 
 def test_invalid_resume_value_raises(tmp_path):
@@ -134,3 +134,27 @@ def test_invalid_resume_value_raises(tmp_path):
     _start(g, cfg)
     with pytest.raises(ValueError):
         g.invoke(Command(resume={"decision": "maybe"}), cfg)
+
+
+def test_execute_denied_write_is_recovered_via_observation(tmp_path):
+    """LLM 이 write_paths 밖에 쓰려 하면 도구가 [denied] Observation 을 돌려주고, LLM 이 고쳐 다시 쓴다."""
+    from app.agents.llm import FakeLLM, LLMTurn, ToolCall
+
+    class EvilFirstLLM(FakeLLM):
+        def chat(self, system, messages, tools=None):
+            if tools and not any(m.role == "tool" for m in messages):
+                self.calls.append((system, messages[0].content))
+                return LLMTurn(text="서버 코드를 고치겠습니다", model=self.model,
+                               tool_calls=[ToolCall(id="c0", name="write_file", args={"path": "server/Evil.java", "content": "x"})])
+            return super().chat(system, messages, tools)
+
+    llm = EvilFirstLLM()
+    ctx = StageContext(stage=StageSpec(id="planning", agent="planner", approvals=["deliverable"]),
+                       agent=_agent(), llm=llm, project_spec="p", workspace=tmp_path, max_retries=3)
+    g = build_stage_subgraph(ctx).compile(checkpointer=InMemorySaver())
+    cfg = _cfg("t-evil")
+    r = _start(g, cfg)
+    d = _interrupt(r)
+    assert not (tmp_path / "server" / "Evil.java").exists()
+    assert d["deliverable_ref"] == "docs/spec/fallback.md"
+    assert (tmp_path / "docs/spec/fallback.md").exists()

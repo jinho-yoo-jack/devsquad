@@ -70,8 +70,8 @@ def test_phase1_single_stage_pipeline_end_to_end(tmp_path):
     assert any("모든 Stage 완료" in m for m in r["messages_log"])
     written = list((tmp_path / "docs" / "spec").glob("*.md"))
     assert len(written) == 1 and "Task: task-e2e" in written[0].read_text(encoding="utf-8")
-    # usage 가 reducer(add) 로 누적됨: plan 1 + execute 1
-    assert len(r["usage"]) == 2
+    # usage 가 reducer(add) 로 누적됨: plan 1 + execute 2턴
+    assert len(r["usage"]) == 3
 
     # 재개(resume) 후 상태 조회 — Control Plane 복구 잡이 쓰는 형태
     snap = g.get_state(cfg)

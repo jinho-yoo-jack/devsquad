@@ -14,7 +14,6 @@
 """
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
@@ -23,10 +22,13 @@ from langgraph.config import get_stream_writer
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import Command, interrupt
 
-from app.agents.llm import LLM
+from app.agents.executor import run_react
+from app.agents.llm import LLM, Message
 from app.agents.prompt import AgentSpec, build_system, build_user
 from app.graph.pipeline import StageSpec
 from app.graph.state import StageResult, StageState, interrupt_payload
+from app.tools.registry import tools_for
+from app.tools.sandbox import Sandbox
 
 GateKind = Literal["plan", "deliverable"]
 
@@ -84,7 +86,7 @@ def build_stage_subgraph(ctx: StageContext):
         system = build_system(agent, ctx.project_spec, "plan", tools_desc="(plan 단계: 도구 없음)")
         user = build_user("plan", s["command"], _prior_inputs(s, stage), feedback=s.get("last_feedback"))
         _emit({"type": "agent.thinking", "stage_key": stage.id, "agent": agent.name, "payload": {"summary": "계획을 작성하는 중"}})
-        r = ctx.llm.complete(system, user)
+        r = ctx.llm.chat(system, [Message(role="user", content=user)], tools=None)
         _emit({"type": "usage", "stage_key": stage.id, "agent": agent.name,
                "payload": {"model": r.model, "input_tokens": r.input_tokens, "output_tokens": r.output_tokens}})
         return {
@@ -123,33 +125,34 @@ def build_stage_subgraph(ctx: StageContext):
         return gate
 
     def execute(s: StageState) -> dict:
-        """Phase 1: LLM 1회 호출로 결과물을 만들고 workspace 의 write_paths 안에 파일로 남긴다.
-        ReAct 루프 + 도구 화이트리스트는 AR-8/9 에서 이 노드를 대체한다."""
-        system = build_system(agent, ctx.project_spec, "execute", tools_desc=f"write_paths: {agent.write_paths}")
+        """ReAct 루프: tool_profile 화이트리스트 안에서 도구를 부르며 결과물을 만든다 (AR-8/9)."""
+        sandbox = Sandbox(ctx.workspace, write_paths=agent.write_paths, read_only=agent.tool_profile == "publisher")
+        tools = tools_for(agent.tool_profile, sandbox, agent.test_command)
+        tools_desc = "\n".join(f"- {t.name}: {t.description}" for t in tools) + f"\n쓰기 허용 경로: {agent.write_paths}"
+        system = build_system(agent, ctx.project_spec, "execute", tools_desc=tools_desc)
         user = build_user("execute", s["command"], _prior_inputs(s, stage), plan=s.get("plan"), feedback=s.get("last_feedback"))
         _emit({"type": "agent.thinking", "stage_key": stage.id, "agent": agent.name, "payload": {"summary": "승인된 계획을 수행하는 중"}})
-        r = ctx.llm.complete(system, user)
 
-        rel_path = _deliverable_path(s.get("plan") or "", agent)
-        target = (ctx.workspace / rel_path).resolve()
-        if not str(target).startswith(str(ctx.workspace.resolve())):
-            raise PermissionError(f"workspace 밖 경로: {rel_path}")
-        target.parent.mkdir(parents=True, exist_ok=True)
-        header = f"> Task: {s['task_id']} · 작성: {agent.name} · 버전: v{s.get('deliverable_retry_no', 0) + 1}\n\n"
-        target.write_text(header + r.text, encoding="utf-8")
-        _emit({"type": "agent.tool_call", "stage_key": stage.id, "agent": agent.name,
-               "payload": {"call_id": f"{stage.id}-write", "tool": "write_file", "args_summary": rel_path}})
-        _emit({"type": "agent.tool_result", "stage_key": stage.id, "agent": agent.name,
-               "payload": {"call_id": f"{stage.id}-write", "tool": "write_file", "ok": True, "summary": f"{len(r.text)} chars"}})
-        summary = _summarize(r.text)
+        res = run_react(ctx.llm, system, user, tools, ctx.max_iterations, _emit, stage.id, agent.name)
+
+        primary = res.written_paths[-1] if res.written_paths else None
+        if primary:
+            content = sandbox.read_file(primary)
+            header = f"> Task: {s['task_id']} · 작성: {agent.name} · 버전: v{s.get('deliverable_retry_no', 0) + 1}\n\n"
+            if not content.startswith("> Task:"):
+                sandbox.write_file(primary, header + content)
+                content = header + content
+        else:
+            # 파일을 하나도 못 썼으면 최종 텍스트 자체가 결과물
+            content = res.final_text
+        summary = _summarize(content)
         _emit({"type": "deliverable.produced", "stage_key": stage.id, "agent": agent.name,
-               "payload": {"kind": "markdown", "uri": rel_path, "summary": summary}})
-        _emit({"type": "usage", "stage_key": stage.id, "agent": agent.name,
-               "payload": {"model": r.model, "input_tokens": r.input_tokens, "output_tokens": r.output_tokens}})
+               "payload": {"kind": "markdown", "uri": primary, "summary": summary,
+                           "written_paths": res.written_paths, "iterations": res.iterations, "hit_limit": res.hit_limit}})
         return {
-            "deliverable_ref": rel_path,
-            "deliverable_summary": r.text,
-            "usage": [{"model": r.model, "input_tokens": r.input_tokens, "output_tokens": r.output_tokens}],
+            "deliverable_ref": primary,
+            "deliverable_summary": content,
+            "usage": res.usage,
         }
 
     def commit_result(s: StageState) -> dict:
@@ -197,15 +200,6 @@ def build_stage_subgraph(ctx: StageContext):
 
 
 # ---- 유틸 ------------------------------------------------------------------
-
-
-def _deliverable_path(plan_text: str, agent: AgentSpec) -> str:
-    """Plan 에서 '작성할 문서: <path>' 를 찾고, 없으면 write_paths 첫 항목 아래 기본 파일명."""
-    m = re.search(r"(docs/[\w\-/]+\.md)", plan_text)
-    if m:
-        return m.group(1)
-    base = (agent.write_paths[0] if agent.write_paths else "docs/**").replace("/**", "").replace("**", "")
-    return f"{base.rstrip('/')}/{agent.name}-deliverable.md"
 
 
 def _summarize(text: str, limit: int = 400) -> str:
