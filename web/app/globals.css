@@ -7,3 +7,21 @@ body {
   font-family: var(--font-sans);
   margin: 0;
 }
+
+/* 실행 중 카드 맥동 (12-디자인 §5 모션) */
+@keyframes pulse-border { 0%, 100% { box-shadow: 0 0 0 0 rgba(59,130,246,.35); } 50% { box-shadow: 0 0 0 4px rgba(59,130,246,0); } }
+.pulse { animation: pulse-border 2s ease-in-out infinite; }
+
+/* Markdown 렌더 */
+.markdown h1 { font-size: 1.15rem; font-weight: 600; margin: .5rem 0; }
+.markdown h2 { font-size: 1.05rem; font-weight: 600; margin: .75rem 0 .25rem; }
+.markdown h3 { font-size: .95rem; font-weight: 600; margin: .5rem 0 .25rem; }
+.markdown p { margin: .35rem 0; }
+.markdown ul, .markdown ol { padding-left: 1.25rem; margin: .25rem 0; }
+.markdown li { margin: .1rem 0; }
+.markdown code { font-family: var(--font-mono); font-size: .8rem; background: var(--surface-2); padding: .05rem .3rem; border-radius: 4px; }
+.markdown pre { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: .6rem; overflow: auto; }
+.markdown pre code { background: transparent; padding: 0; }
+.markdown table { border-collapse: collapse; font-size: .8rem; }
+.markdown th, .markdown td { border: 1px solid var(--border); padding: .25rem .5rem; }
+.markdown blockquote { border-left: 3px solid var(--border); padding-left: .75rem; color: var(--text-2); }
