@@ -1,0 +1,21 @@
+version: "2"
+sql:
+  - engine: postgresql
+    queries: internal/store/query
+    schema: internal/store/migrations
+    gen:
+      go:
+        package: sqlc
+        out: internal/store/sqlc
+        sql_package: pgx/v5
+        emit_empty_slices: true
+        overrides:
+          - db_type: uuid
+            go_type: string
+          - db_type: pg_catalog.int4
+            go_type: int
+          - db_type: text
+            nullable: true
+            go_type:
+              type: string
+              pointer: true

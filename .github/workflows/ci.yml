@@ -6,25 +6,19 @@ on:
   pull_request:
 
 jobs:
-  control-plane:
+  go:
     runs-on: ubuntu-latest
-    defaults: { run: { working-directory: control-plane } }
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with: { distribution: temurin, java-version: "21", cache: gradle }
-      - run: chmod +x gradlew && ./gradlew test --no-daemon
-
-  agent-runtime:
-    runs-on: ubuntu-latest
-    defaults: { run: { working-directory: agent-runtime } }
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: { python-version: "3.12" }
-      - run: pip install -e ".[dev]"
-      - run: ruff check app tests
-      - run: pytest -q
+      - uses: actions/setup-go@v5
+        with: { go-version-file: go.mod, cache: true }
+      - run: test -z "$(gofmt -l cmd internal)"
+      - run: make generate && git diff --exit-code -- internal/store/sqlc
+      - run: make test build
+      - run: make test-integration
+      - run: docker build -t devsquad:test .
+      - if: always()
+        run: docker compose -p devsquad-go-test -f infra/docker-compose.test.yml down -v
 
   web:
     runs-on: ubuntu-latest

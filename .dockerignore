@@ -1,0 +1,14 @@
+.git
+.idea
+.omc
+**/node_modules
+**/.next
+**/.venv
+**/.gradle
+**/build
+**/__pycache__
+**/.pytest_cache
+**/.env
+**/*.pem
+**/*.key
+bin

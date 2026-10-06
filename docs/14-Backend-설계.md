@@ -9,6 +9,8 @@ tags: [backend, spring-boot, java, python, langgraph, fastapi, postgresql, redis
 
 # Backend 설계 — Control Plane + Agent Runtime
 
+> **현재 구현 (2026-10-06):** `cmd/devsquad`가 단일 Go 서비스를 실행한다. `internal/httpapi`(Huma), `app`(트랜잭션), `domain`(상태 기계), `store`(pgx/sqlc/goose), `orchestrator`(Reconcile·복구), `stage`(LLM·도구)로 나뉜다. 트랜잭션 안에는 외부 I/O를 두지 않고, 승인과 단계 결과는 조건부 UPDATE로 한 번만 반영한다. [19 · 통합 설계](19-Go-통합-서비스-설계.md)와 [20 · 구현·검증](20-Go-통합-서비스-구현-검증.md)이 현재 기준이며 아래 Java/Python 코드는 초기 설계 보존본이다.
+
 > [!tip] 핵심 Takeaway
 > Control Plane(Spring)은 **Task·Approval의 상태 기계와 외부 채널 어댑터**에 집중하고, Agent Runtime(Python)은 **`pipeline.yaml`을 읽어 LangGraph 그래프를 동적으로 조립하고 실행**하는 데 집중한다. 승인 게이트는 각 Stage 서브그래프 안의 `plan_gate` / `deliverable_gate` 노드가 `interrupt()`로 구현하며, 재개 시 노드가 처음부터 재실행되는 LangGraph 시맨틱을 감안해 **LLM 호출과 부작용은 gate 노드 밖**에 둔다.
 
