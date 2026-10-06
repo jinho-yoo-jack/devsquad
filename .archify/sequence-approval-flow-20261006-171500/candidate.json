@@ -1,0 +1,329 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "승인 결정 → Reconcile → Stage 실행 흐름 (Go, 1d44473)",
+    "output": ".archify/sequence-approval-flow-20261006-171500/approval-flow.html",
+    "viewBox": [
+      1040,
+      660
+    ],
+    "column_fit": "spread",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "git@github.com-devsquad:jinho-yoo-jack/devsquad.git",
+      "link_mode": "local-only",
+      "revision": "1d44473ae6ee40305684eb70e481dab49596caae"
+    }
+  },
+  "participants": [
+    {
+      "id": "web",
+      "type": "frontend",
+      "label": "Web UI",
+      "sublabel": "Next.js",
+      "sources": [
+        {
+          "path": "web/lib/ws/connection.ts",
+          "line": 1,
+          "end_line": 187,
+          "label": "WS connection"
+        }
+      ]
+    },
+    {
+      "id": "approval",
+      "type": "backend",
+      "label": "Approval",
+      "sublabel": "UpdateApproval",
+      "sources": [
+        {
+          "path": "internal/httpapi/http.go",
+          "line": 142,
+          "end_line": 150,
+          "label": "approvals decide"
+        },
+        {
+          "path": "internal/app/approval.go",
+          "line": 51,
+          "end_line": 138,
+          "label": "UpdateApproval"
+        }
+      ]
+    },
+    {
+      "id": "db",
+      "type": "database",
+      "label": "PostgreSQL",
+      "sublabel": "WithTx",
+      "sources": [
+        {
+          "path": "internal/store/store.go",
+          "line": 39,
+          "end_line": 61,
+          "label": "WithTx, AfterCommit"
+        }
+      ]
+    },
+    {
+      "id": "orch",
+      "type": "backend",
+      "label": "Orchestrator",
+      "sublabel": "Reconcile",
+      "sources": [
+        {
+          "path": "internal/orchestrator/orchestrator.go",
+          "line": 79,
+          "end_line": 176,
+          "label": "Reconcile"
+        },
+        {
+          "path": "internal/orchestrator/orchestrator.go",
+          "line": 178,
+          "end_line": 205,
+          "label": "run"
+        },
+        {
+          "path": "internal/orchestrator/orchestrator.go",
+          "line": 286,
+          "end_line": 340,
+          "label": "commit"
+        }
+      ]
+    },
+    {
+      "id": "ws",
+      "type": "backend",
+      "label": "Workspace",
+      "sublabel": "git",
+      "sources": [
+        {
+          "path": "internal/workspace/git.go",
+          "line": 115,
+          "end_line": 142,
+          "label": "Reset"
+        }
+      ]
+    },
+    {
+      "id": "runner",
+      "type": "backend",
+      "label": "Stage Runner",
+      "sublabel": "ReAct",
+      "sources": [
+        {
+          "path": "internal/stage/runner.go",
+          "line": 50,
+          "end_line": 140,
+          "label": "AgentRunner.Run"
+        }
+      ]
+    },
+    {
+      "id": "llm",
+      "type": "external",
+      "label": "LLM",
+      "sublabel": "Chat",
+      "sources": [
+        {
+          "path": "internal/llm/anthropic/anthropic.go",
+          "line": 25,
+          "end_line": 66,
+          "label": "Adapter.Chat"
+        }
+      ]
+    },
+    {
+      "id": "bus",
+      "type": "messagebus",
+      "label": "Bus → WS Hub",
+      "sublabel": "커밋 후 전송",
+      "sources": [
+        {
+          "path": "internal/event/emitter.go",
+          "line": 26,
+          "end_line": 67,
+          "label": "Emit"
+        },
+        {
+          "path": "internal/ws/hub.go",
+          "line": 48,
+          "end_line": 150,
+          "label": "Hub"
+        }
+      ]
+    }
+  ],
+  "segments": [
+    {
+      "from": 146,
+      "to": 312,
+      "label": "① 결정 트랜잭션"
+    },
+    {
+      "from": 316,
+      "to": 368,
+      "label": "② Reconcile"
+    },
+    {
+      "from": 372,
+      "to": 536,
+      "label": "③ 실행·결과 커밋"
+    }
+  ],
+  "messages": [
+    {
+      "id": "decide-request",
+      "from": "web",
+      "to": "approval",
+      "y": 160,
+      "label": "POST decide",
+      "variant": "emphasis"
+    },
+    {
+      "id": "lock-decide",
+      "from": "approval",
+      "to": "db",
+      "y": 188,
+      "label": "pending만 UPDATE (0행=409)"
+    },
+    {
+      "id": "stage-transition",
+      "from": "approval",
+      "to": "db",
+      "y": 216,
+      "label": "Stage·Task 전이 + 이벤트"
+    },
+    {
+      "id": "publish-decided",
+      "from": "approval",
+      "to": "bus",
+      "y": 244,
+      "label": "커밋 후 WS 전송",
+      "variant": "dashed"
+    },
+    {
+      "id": "wake",
+      "from": "approval",
+      "to": "orch",
+      "y": 272,
+      "label": "커밋 후 Wake",
+      "variant": "dashed"
+    },
+    {
+      "id": "decide-response",
+      "from": "approval",
+      "to": "web",
+      "y": 300,
+      "label": "200 decided",
+      "variant": "return"
+    },
+    {
+      "id": "claim",
+      "from": "orch",
+      "to": "db",
+      "y": 328,
+      "label": "조회 → claim attempt+1",
+      "variant": "emphasis"
+    },
+    {
+      "id": "reset",
+      "from": "orch",
+      "to": "ws",
+      "y": 356,
+      "label": "Reset write_paths"
+    },
+    {
+      "id": "spawn-run",
+      "from": "orch",
+      "to": "runner",
+      "y": 384,
+      "label": "goroutine Run"
+    },
+    {
+      "id": "chat",
+      "from": "runner",
+      "to": "llm",
+      "y": 412,
+      "label": "Chat"
+    },
+    {
+      "id": "progress",
+      "from": "runner",
+      "to": "orch",
+      "y": 440,
+      "label": "진행 이벤트 Emit",
+      "variant": "dashed"
+    },
+    {
+      "id": "result",
+      "from": "runner",
+      "to": "orch",
+      "y": 468,
+      "label": "Result",
+      "variant": "return"
+    },
+    {
+      "id": "commit",
+      "from": "orch",
+      "to": "db",
+      "y": 496,
+      "label": "commit (attempt 확인)",
+      "variant": "emphasis"
+    },
+    {
+      "id": "publish-requested",
+      "from": "orch",
+      "to": "bus",
+      "y": 524,
+      "label": "커밋 후 WS 전송",
+      "variant": "dashed"
+    }
+  ],
+  "activations": [
+    {
+      "participant": "approval",
+      "from": 160,
+      "to": 306,
+      "type": "backend"
+    },
+    {
+      "participant": "orch",
+      "from": 272,
+      "to": 530,
+      "type": "backend"
+    },
+    {
+      "participant": "runner",
+      "from": 384,
+      "to": 474,
+      "type": "backend"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "원자성",
+      "items": [
+        "승인 결정·Stage 전이·이벤트가 한 트랜잭션",
+        "Wake와 WS 전송은 커밋 성공 후에만 실행"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "중복 방지",
+      "items": [
+        "approval은 pending일 때만 갱신, 동시 결정은 409",
+        "claim과 commit이 attempt를 조건으로 써서 같은 결과가 두 번 반영되지 않음"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "재실행 안전",
+      "items": [
+        "execute 전 해당 Stage의 write_paths만 git 기준점으로 되돌림",
+        "Run이 끝나면 다시 Wake해 다음 Stage를 판단"
+      ]
+    }
+  ]
+}

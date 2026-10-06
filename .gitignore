@@ -34,3 +34,9 @@ web/playwright-report/
 # next build artifacts
 web/tsconfig.tsbuildinfo
 web/next-env.d.ts
+
+# local agent state and analysis cache
+.omc/
+graphify-out/cache/
+graphify-out/.graphify_python
+graphify-out/.graphify_root

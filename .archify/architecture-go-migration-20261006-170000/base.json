@@ -1,0 +1,606 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "DevSquad 이전 구조 (fc62112): Spring Control Plane + Python Agent Runtime",
+    "output": ".archify/architecture-go-migration-20261006-170000/base.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "git@github.com-devsquad:jinho-yoo-jack/devsquad.git",
+      "link_mode": "local-only",
+      "revision": "fc62112157159b7949982c6cb6ba6afc706c6bd9"
+    }
+  },
+  "components": [
+    {
+      "id": "web",
+      "type": "frontend",
+      "label": "Web UI",
+      "sublabel": "Next.js",
+      "pos": [
+        40,
+        300
+      ],
+      "size": [
+        130,
+        64
+      ],
+      "sources": [
+        {
+          "path": "web/lib/api/client.ts",
+          "line": 1,
+          "end_line": 44,
+          "label": "REST client"
+        },
+        {
+          "path": "web/lib/ws/connection.ts",
+          "line": 1,
+          "end_line": 187,
+          "label": "WS connection"
+        }
+      ]
+    },
+    {
+      "id": "http-api",
+      "type": "backend",
+      "label": "REST API",
+      "sublabel": "Spring MVC /api/v1",
+      "pos": [
+        240,
+        300
+      ],
+      "size": [
+        140,
+        64
+      ],
+      "sources": [
+        {
+          "path": "control-plane/src/main/java/dev/devsquad/task/api/TaskController.java",
+          "line": 22,
+          "end_line": 50,
+          "label": "TaskController"
+        },
+        {
+          "path": "control-plane/src/main/java/dev/devsquad/approval/api/ApprovalController.java",
+          "line": 44,
+          "end_line": 50,
+          "label": "decide endpoint"
+        }
+      ]
+    },
+    {
+      "id": "task-service",
+      "type": "backend",
+      "label": "TaskService",
+      "sublabel": "JPA, 2개 트랜잭션",
+      "pos": [
+        460,
+        190
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "sources": [
+        {
+          "path": "control-plane/src/main/java/dev/devsquad/task/app/TaskService.java",
+          "line": 50,
+          "end_line": 70,
+          "label": "create, startRun"
+        }
+      ]
+    },
+    {
+      "id": "approval-service",
+      "type": "backend",
+      "label": "ApprovalService",
+      "sublabel": "@Version 낙관적 락",
+      "pos": [
+        460,
+        410
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "sources": [
+        {
+          "path": "control-plane/src/main/java/dev/devsquad/approval/app/ApprovalService.java",
+          "line": 57,
+          "end_line": 92,
+          "label": "decide, onDecided"
+        }
+      ]
+    },
+    {
+      "id": "recovery",
+      "type": "backend",
+      "label": "RunRecoveryJob",
+      "sublabel": "@Scheduled 5분",
+      "pos": [
+        700,
+        60
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "sources": [
+        {
+          "path": "control-plane/src/main/java/dev/devsquad/runtime/RunRecoveryJob.java",
+          "line": 44,
+          "end_line": 75,
+          "label": "queued·resume·stranded"
+        }
+      ]
+    },
+    {
+      "id": "runtime-client",
+      "type": "backend",
+      "label": "AgentRuntimeClient",
+      "sublabel": "RestClient",
+      "pos": [
+        700,
+        300
+      ],
+      "size": [
+        160,
+        64
+      ],
+      "sources": [
+        {
+          "path": "control-plane/src/main/java/dev/devsquad/runtime/AgentRuntimeClient.java",
+          "line": 29,
+          "end_line": 68,
+          "label": "/runs, resume, continue"
+        }
+      ]
+    },
+    {
+      "id": "ws-hub",
+      "type": "backend",
+      "label": "WebSocket Hub",
+      "sublabel": "WsHandler + WsFanout",
+      "pos": [
+        180,
+        560
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "sources": [
+        {
+          "path": "control-plane/src/main/java/dev/devsquad/event/ws/WsHandler.java",
+          "line": 45,
+          "end_line": 70,
+          "label": "subscribe, replay"
+        },
+        {
+          "path": "control-plane/src/main/java/dev/devsquad/event/ws/WsFanout.java",
+          "line": 17,
+          "end_line": 21,
+          "label": "AFTER_COMMIT fanout"
+        }
+      ]
+    },
+    {
+      "id": "event-ingest",
+      "type": "backend",
+      "label": "Event Ingest",
+      "sublabel": "Consumer + Dispatcher",
+      "pos": [
+        460,
+        560
+      ],
+      "size": [
+        160,
+        64
+      ],
+      "sources": [
+        {
+          "path": "control-plane/src/main/java/dev/devsquad/event/ingest/RedisStreamConsumer.java",
+          "line": 42,
+          "end_line": 80,
+          "label": "XREADGROUP, XACK"
+        },
+        {
+          "path": "control-plane/src/main/java/dev/devsquad/event/ingest/EventDispatcher.java",
+          "line": 61,
+          "end_line": 97,
+          "label": "저장·상태 전이"
+        }
+      ]
+    },
+    {
+      "id": "ar-api",
+      "type": "backend",
+      "label": "Runtime API",
+      "sublabel": "FastAPI /runs",
+      "pos": [
+        940,
+        300
+      ],
+      "size": [
+        130,
+        64
+      ],
+      "sources": [
+        {
+          "path": "agent-runtime/app/main.py",
+          "line": 45,
+          "end_line": 48,
+          "label": "X-Internal-Token"
+        },
+        {
+          "path": "agent-runtime/app/main.py",
+          "line": 112,
+          "end_line": 141,
+          "label": "/runs, resume"
+        }
+      ]
+    },
+    {
+      "id": "orchestrator",
+      "type": "backend",
+      "label": "RunManager + LangGraph",
+      "sublabel": "StateGraph, interrupt()",
+      "pos": [
+        1175,
+        300
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "sources": [
+        {
+          "path": "agent-runtime/app/runs/manager.py",
+          "line": 46,
+          "end_line": 159,
+          "label": "start, resume"
+        },
+        {
+          "path": "agent-runtime/app/graph/builder.py",
+          "line": 40,
+          "end_line": 66,
+          "label": "DAG → StateGraph"
+        }
+      ]
+    },
+    {
+      "id": "stage-runner",
+      "type": "backend",
+      "label": "Stage Subgraph",
+      "sublabel": "gate interrupt + ReAct",
+      "pos": [
+        1455,
+        300
+      ],
+      "size": [
+        160,
+        64
+      ],
+      "sources": [
+        {
+          "path": "agent-runtime/app/graph/stage_subgraph.py",
+          "line": 67,
+          "end_line": 136,
+          "label": "gate, execute"
+        }
+      ]
+    },
+    {
+      "id": "llm",
+      "type": "backend",
+      "label": "LLM Adapter",
+      "sublabel": "LangChain init_chat_model",
+      "pos": [
+        1455,
+        160
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "sources": [
+        {
+          "path": "agent-runtime/app/agents/llm.py",
+          "line": 138,
+          "end_line": 166,
+          "label": "LangChainLLM"
+        }
+      ]
+    },
+    {
+      "id": "anthropic",
+      "type": "external",
+      "label": "LLM Provider",
+      "sublabel": "Anthropic 등",
+      "pos": [
+        1455,
+        20
+      ],
+      "size": [
+        150,
+        64
+      ]
+    },
+    {
+      "id": "sandbox",
+      "type": "security",
+      "label": "Tool Sandbox",
+      "sublabel": "write_paths glob",
+      "pos": [
+        1455,
+        480
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "sources": [
+        {
+          "path": "agent-runtime/app/tools/sandbox.py",
+          "line": 25,
+          "end_line": 80,
+          "label": "Sandbox"
+        }
+      ]
+    },
+    {
+      "id": "workspace",
+      "type": "backend",
+      "label": "Workspace",
+      "sublabel": "local_path copytree",
+      "pos": [
+        1175,
+        480
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "sources": [
+        {
+          "path": "agent-runtime/app/workspace/manager.py",
+          "line": 32,
+          "end_line": 41,
+          "label": "prepare"
+        }
+      ]
+    },
+    {
+      "id": "redis-stream",
+      "type": "messagebus",
+      "label": "Redis Stream",
+      "sublabel": "devsquad:events",
+      "pos": [
+        700,
+        560
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "sources": [
+        {
+          "path": "agent-runtime/app/events/publisher.py",
+          "line": 68,
+          "end_line": 83,
+          "label": "INCR seq, XADD"
+        }
+      ]
+    },
+    {
+      "id": "checkpoint",
+      "type": "database",
+      "label": "LangGraph Checkpoint",
+      "sublabel": "langgraph 스키마",
+      "pos": [
+        940,
+        480
+      ],
+      "size": [
+        170,
+        64
+      ],
+      "sources": [
+        {
+          "path": "agent-runtime/app/checkpointer.py",
+          "line": 21,
+          "end_line": 26,
+          "label": "PostgresSaver"
+        }
+      ]
+    },
+    {
+      "id": "postgres",
+      "type": "database",
+      "label": "PostgreSQL",
+      "sublabel": "public: task, stage, approval, task_event",
+      "pos": [
+        440,
+        720
+      ],
+      "size": [
+        220,
+        64
+      ],
+      "sources": [
+        {
+          "path": "control-plane/src/main/resources/db/migration/V1__baseline.sql",
+          "line": 4,
+          "end_line": 100,
+          "label": "V1 baseline"
+        }
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Control Plane · Spring Boot :8080",
+      "wraps": [
+        "http-api",
+        "task-service",
+        "approval-service",
+        "recovery",
+        "runtime-client",
+        "ws-hub",
+        "event-ingest"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "Agent Runtime · Python FastAPI :8100",
+      "wraps": [
+        "ar-api",
+        "orchestrator",
+        "stage-runner",
+        "llm",
+        "sandbox",
+        "workspace"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "web-rest",
+      "from": "web",
+      "to": "http-api",
+      "label": "REST",
+      "variant": "emphasis"
+    },
+    {
+      "id": "web-ws",
+      "from": "web",
+      "to": "ws-hub",
+      "label": "WS subscribe"
+    },
+    {
+      "id": "api-task",
+      "from": "http-api",
+      "to": "task-service",
+      "label": "create"
+    },
+    {
+      "id": "api-approval",
+      "from": "http-api",
+      "to": "approval-service",
+      "label": "decide"
+    },
+    {
+      "id": "task-run",
+      "from": "task-service",
+      "to": "runtime-client",
+      "label": "run"
+    },
+    {
+      "id": "approval-resume",
+      "from": "approval-service",
+      "to": "runtime-client",
+      "label": "resume (커밋 후)"
+    },
+    {
+      "id": "recovery-retry",
+      "from": "recovery",
+      "to": "runtime-client",
+      "label": "continue·재전송"
+    },
+    {
+      "id": "internal-http",
+      "from": "runtime-client",
+      "to": "ar-api",
+      "label": "내부 HTTP",
+      "variant": "security"
+    },
+    {
+      "id": "ar-run",
+      "from": "ar-api",
+      "to": "orchestrator",
+      "label": "start/resume"
+    },
+    {
+      "id": "graph-stage",
+      "from": "orchestrator",
+      "to": "stage-runner",
+      "label": "subgraph 노드"
+    },
+    {
+      "id": "stage-llm",
+      "from": "stage-runner",
+      "to": "llm",
+      "label": "chat"
+    },
+    {
+      "id": "llm-provider",
+      "from": "llm",
+      "to": "anthropic",
+      "label": "API"
+    },
+    {
+      "id": "stage-tools",
+      "from": "stage-runner",
+      "to": "sandbox",
+      "label": "도구 호출"
+    },
+    {
+      "id": "orch-workspace",
+      "from": "orchestrator",
+      "to": "workspace",
+      "label": "prepare"
+    },
+    {
+      "id": "orch-checkpoint",
+      "from": "orchestrator",
+      "to": "checkpoint",
+      "label": "checkpoint"
+    },
+    {
+      "id": "orch-stream",
+      "from": "orchestrator",
+      "to": "redis-stream",
+      "label": "XADD 이벤트",
+      "variant": "dashed"
+    },
+    {
+      "id": "stream-ingest",
+      "from": "redis-stream",
+      "to": "event-ingest",
+      "label": "XREADGROUP",
+      "variant": "dashed"
+    },
+    {
+      "id": "ingest-db",
+      "from": "event-ingest",
+      "to": "postgres",
+      "label": "저장·상태 전이"
+    },
+    {
+      "id": "ingest-ws",
+      "from": "event-ingest",
+      "to": "ws-hub",
+      "label": "커밋 후 fanout"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "amber",
+      "title": "두 서비스 사이 연결",
+      "items": [
+        "명령: CP → AR 내부 HTTP (/runs, resume, continue)",
+        "이벤트: AR → Redis Stream → CP 컨슈머",
+        "실패 시 resume_pending + RunRecoveryJob 재전송"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "상태 저장소가 두 곳",
+      "items": [
+        "CP: public 스키마의 Task·Stage·Approval",
+        "AR: langgraph 스키마의 체크포인트"
+      ]
+    }
+  ]
+}

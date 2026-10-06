@@ -1,0 +1,650 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "compare",
+  "type": "architecture",
+  "comparatorVersion": 1,
+  "canonicalVersion": 1,
+  "completeness": "complete",
+  "proofLevel": "revision-pinned",
+  "base": {
+    "title": "DevSquad 이전 구조 (fc62112): Spring Control Plane + Python Agent Runtime",
+    "rawSha256": "198266cb58c388e3711b1b4207f7cbe80eca9a82751adb36b3edb2afa44c5c02",
+    "semanticSha256": "066e90a7daddc1f755ff0c76c47d22b17b82a68143b79a8992cdd5ea59f8fed0",
+    "bytes": 12773,
+    "revision": "fc62112157159b7949982c6cb6ba6afc706c6bd9"
+  },
+  "head": {
+    "title": "DevSquad 이후 구조 (1d44473): Go 단일 서비스",
+    "rawSha256": "688b1570bf016118bc5eb4c2e79481d7eb622b5aef2dded3b154157f6376b662",
+    "semanticSha256": "0927df29af908f95576de18a821f1867041fbe2de6a91f4aebeb200870f4040c",
+    "bytes": 7166,
+    "revision": "1d44473ae6ee40305684eb70e481dab49596caae"
+  },
+  "summary": {
+    "components": {
+      "added": 1,
+      "changed": 11,
+      "evidenceChanged": 1,
+      "removed": 5,
+      "moved": 0
+    },
+    "connections": {
+      "added": 7,
+      "changed": 2,
+      "removed": 11,
+      "rerouted": 0
+    },
+    "boundaries": {
+      "added": 1,
+      "changed": 0,
+      "removed": 2,
+      "geometryChanged": 0
+    },
+    "presentationChanged": true,
+    "provenanceChanged": true
+  },
+  "changes": {
+    "components": [
+      {
+        "id": "anthropic",
+        "baseLabel": "LLM Provider",
+        "headLabel": "LLM Provider",
+        "status": "evidence-changed",
+        "classifications": [
+          "evidence",
+          "geometry"
+        ],
+        "changedFields": [
+          "/pos",
+          "/sources"
+        ]
+      },
+      {
+        "id": "approval-service",
+        "baseLabel": "ApprovalService",
+        "headLabel": "ApprovalService",
+        "status": "changed",
+        "classifications": [
+          "evidence",
+          "geometry",
+          "semantic"
+        ],
+        "changedFields": [
+          "/pos",
+          "/sources",
+          "/sublabel"
+        ]
+      },
+      {
+        "id": "ar-api",
+        "baseLabel": "Runtime API",
+        "status": "removed",
+        "classifications": [
+          "semantic"
+        ],
+        "changedFields": []
+      },
+      {
+        "id": "checkpoint",
+        "baseLabel": "LangGraph Checkpoint",
+        "status": "removed",
+        "classifications": [
+          "semantic"
+        ],
+        "changedFields": []
+      },
+      {
+        "id": "event-bus",
+        "headLabel": "Emitter + Bus",
+        "status": "added",
+        "classifications": [
+          "semantic"
+        ],
+        "changedFields": []
+      },
+      {
+        "id": "event-ingest",
+        "baseLabel": "Event Ingest",
+        "status": "removed",
+        "classifications": [
+          "semantic"
+        ],
+        "changedFields": []
+      },
+      {
+        "id": "http-api",
+        "baseLabel": "REST API",
+        "headLabel": "REST API",
+        "status": "changed",
+        "classifications": [
+          "evidence",
+          "geometry",
+          "semantic"
+        ],
+        "changedFields": [
+          "/pos",
+          "/sources",
+          "/sublabel"
+        ]
+      },
+      {
+        "id": "llm",
+        "baseLabel": "LLM Adapter",
+        "headLabel": "LLM Registry",
+        "status": "changed",
+        "classifications": [
+          "evidence",
+          "geometry",
+          "semantic"
+        ],
+        "changedFields": [
+          "/label",
+          "/pos",
+          "/size",
+          "/sources",
+          "/sublabel"
+        ]
+      },
+      {
+        "id": "orchestrator",
+        "baseLabel": "RunManager + LangGraph",
+        "headLabel": "Orchestrator",
+        "status": "changed",
+        "classifications": [
+          "evidence",
+          "geometry",
+          "semantic"
+        ],
+        "changedFields": [
+          "/label",
+          "/pos",
+          "/sources",
+          "/sublabel",
+          "/tag"
+        ]
+      },
+      {
+        "id": "postgres",
+        "baseLabel": "PostgreSQL",
+        "headLabel": "PostgreSQL",
+        "status": "changed",
+        "classifications": [
+          "evidence",
+          "geometry",
+          "semantic"
+        ],
+        "changedFields": [
+          "/pos",
+          "/size",
+          "/sources",
+          "/sublabel",
+          "/tag"
+        ]
+      },
+      {
+        "id": "recovery",
+        "baseLabel": "RunRecoveryJob",
+        "headLabel": "Recovery Loop",
+        "status": "changed",
+        "classifications": [
+          "evidence",
+          "geometry",
+          "semantic"
+        ],
+        "changedFields": [
+          "/label",
+          "/pos",
+          "/size",
+          "/sources",
+          "/sublabel"
+        ]
+      },
+      {
+        "id": "redis-stream",
+        "baseLabel": "Redis Stream",
+        "status": "removed",
+        "classifications": [
+          "semantic"
+        ],
+        "changedFields": []
+      },
+      {
+        "id": "runtime-client",
+        "baseLabel": "AgentRuntimeClient",
+        "status": "removed",
+        "classifications": [
+          "semantic"
+        ],
+        "changedFields": []
+      },
+      {
+        "id": "sandbox",
+        "baseLabel": "Tool Sandbox",
+        "headLabel": "Tool Sandbox",
+        "status": "changed",
+        "classifications": [
+          "evidence",
+          "geometry",
+          "semantic"
+        ],
+        "changedFields": [
+          "/pos",
+          "/size",
+          "/sources",
+          "/sublabel"
+        ]
+      },
+      {
+        "id": "stage-runner",
+        "baseLabel": "Stage Subgraph",
+        "headLabel": "Stage Runner",
+        "status": "changed",
+        "classifications": [
+          "evidence",
+          "geometry",
+          "semantic"
+        ],
+        "changedFields": [
+          "/label",
+          "/pos",
+          "/sources",
+          "/sublabel"
+        ]
+      },
+      {
+        "id": "task-service",
+        "baseLabel": "TaskService",
+        "headLabel": "TaskService",
+        "status": "changed",
+        "classifications": [
+          "evidence",
+          "geometry",
+          "semantic"
+        ],
+        "changedFields": [
+          "/pos",
+          "/sources",
+          "/sublabel"
+        ]
+      },
+      {
+        "id": "workspace",
+        "baseLabel": "Workspace",
+        "headLabel": "Workspace",
+        "status": "changed",
+        "classifications": [
+          "evidence",
+          "geometry",
+          "semantic"
+        ],
+        "changedFields": [
+          "/pos",
+          "/size",
+          "/sources",
+          "/sublabel"
+        ]
+      },
+      {
+        "id": "ws-hub",
+        "baseLabel": "WebSocket Hub",
+        "headLabel": "WebSocket Hub",
+        "status": "changed",
+        "classifications": [
+          "evidence",
+          "geometry",
+          "semantic"
+        ],
+        "changedFields": [
+          "/pos",
+          "/size",
+          "/sources",
+          "/sublabel"
+        ]
+      }
+    ],
+    "connections": [
+      {
+        "id": "approval-db",
+        "head": {
+          "from": "approval-service",
+          "to": "postgres",
+          "label": "WithTx"
+        },
+        "status": "added",
+        "classifications": [
+          "topology"
+        ],
+        "changedFields": []
+      },
+      {
+        "id": "approval-resume",
+        "base": {
+          "from": "approval-service",
+          "to": "runtime-client",
+          "label": "resume (커밋 후)"
+        },
+        "status": "removed",
+        "classifications": [
+          "topology"
+        ],
+        "changedFields": []
+      },
+      {
+        "id": "approval-wake",
+        "head": {
+          "from": "approval-service",
+          "to": "orchestrator",
+          "label": "커밋 후 Wake"
+        },
+        "status": "added",
+        "classifications": [
+          "topology"
+        ],
+        "changedFields": []
+      },
+      {
+        "id": "ar-run",
+        "base": {
+          "from": "ar-api",
+          "to": "orchestrator",
+          "label": "start/resume"
+        },
+        "status": "removed",
+        "classifications": [
+          "topology"
+        ],
+        "changedFields": []
+      },
+      {
+        "id": "bus-ws",
+        "head": {
+          "from": "event-bus",
+          "to": "ws-hub",
+          "label": "Subscribe"
+        },
+        "status": "added",
+        "classifications": [
+          "topology"
+        ],
+        "changedFields": []
+      },
+      {
+        "id": "graph-stage",
+        "base": {
+          "from": "orchestrator",
+          "to": "stage-runner",
+          "label": "subgraph 노드"
+        },
+        "status": "removed",
+        "classifications": [
+          "topology"
+        ],
+        "changedFields": []
+      },
+      {
+        "id": "ingest-db",
+        "base": {
+          "from": "event-ingest",
+          "to": "postgres",
+          "label": "저장·상태 전이"
+        },
+        "status": "removed",
+        "classifications": [
+          "topology"
+        ],
+        "changedFields": []
+      },
+      {
+        "id": "ingest-ws",
+        "base": {
+          "from": "event-ingest",
+          "to": "ws-hub",
+          "label": "커밋 후 fanout"
+        },
+        "status": "removed",
+        "classifications": [
+          "topology"
+        ],
+        "changedFields": []
+      },
+      {
+        "id": "internal-http",
+        "base": {
+          "from": "runtime-client",
+          "to": "ar-api",
+          "label": "내부 HTTP"
+        },
+        "status": "removed",
+        "classifications": [
+          "topology"
+        ],
+        "changedFields": []
+      },
+      {
+        "id": "orch-checkpoint",
+        "base": {
+          "from": "orchestrator",
+          "to": "checkpoint",
+          "label": "checkpoint"
+        },
+        "status": "removed",
+        "classifications": [
+          "topology"
+        ],
+        "changedFields": []
+      },
+      {
+        "id": "orch-db",
+        "head": {
+          "from": "orchestrator",
+          "to": "postgres",
+          "label": "WithTx"
+        },
+        "status": "added",
+        "classifications": [
+          "topology"
+        ],
+        "changedFields": []
+      },
+      {
+        "id": "orch-stage",
+        "head": {
+          "from": "orchestrator",
+          "to": "stage-runner",
+          "label": "goroutine Run"
+        },
+        "status": "added",
+        "classifications": [
+          "topology"
+        ],
+        "changedFields": []
+      },
+      {
+        "id": "orch-stream",
+        "base": {
+          "from": "orchestrator",
+          "to": "redis-stream",
+          "label": "XADD 이벤트"
+        },
+        "status": "removed",
+        "classifications": [
+          "topology"
+        ],
+        "changedFields": []
+      },
+      {
+        "id": "orch-workspace",
+        "base": {
+          "from": "orchestrator",
+          "to": "workspace",
+          "label": "prepare"
+        },
+        "head": {
+          "from": "orchestrator",
+          "to": "workspace",
+          "label": "Reset/Accept"
+        },
+        "status": "changed",
+        "classifications": [
+          "semantic"
+        ],
+        "changedFields": [
+          "/label"
+        ]
+      },
+      {
+        "id": "recovery-reconcile",
+        "head": {
+          "from": "recovery",
+          "to": "orchestrator",
+          "label": "Reconcile"
+        },
+        "status": "added",
+        "classifications": [
+          "topology"
+        ],
+        "changedFields": []
+      },
+      {
+        "id": "recovery-retry",
+        "base": {
+          "from": "recovery",
+          "to": "runtime-client",
+          "label": "continue·재전송"
+        },
+        "status": "removed",
+        "classifications": [
+          "topology"
+        ],
+        "changedFields": []
+      },
+      {
+        "id": "stage-llm",
+        "base": {
+          "from": "stage-runner",
+          "to": "llm",
+          "label": "chat"
+        },
+        "head": {
+          "from": "stage-runner",
+          "to": "llm",
+          "label": "Chat"
+        },
+        "status": "changed",
+        "classifications": [
+          "semantic"
+        ],
+        "changedFields": [
+          "/label"
+        ]
+      },
+      {
+        "id": "stream-ingest",
+        "base": {
+          "from": "redis-stream",
+          "to": "event-ingest",
+          "label": "XREADGROUP"
+        },
+        "status": "removed",
+        "classifications": [
+          "topology"
+        ],
+        "changedFields": []
+      },
+      {
+        "id": "task-run",
+        "base": {
+          "from": "task-service",
+          "to": "runtime-client",
+          "label": "run"
+        },
+        "status": "removed",
+        "classifications": [
+          "topology"
+        ],
+        "changedFields": []
+      },
+      {
+        "id": "task-wake",
+        "head": {
+          "from": "task-service",
+          "to": "orchestrator",
+          "label": "커밋 후 Wake"
+        },
+        "status": "added",
+        "classifications": [
+          "topology"
+        ],
+        "changedFields": []
+      }
+    ],
+    "boundaries": [
+      {
+        "key": "region:Agent Runtime · Python FastAPI :8100",
+        "kind": "region",
+        "label": "Agent Runtime · Python FastAPI :8100",
+        "status": "removed",
+        "classifications": [
+          "scope"
+        ],
+        "changedFields": []
+      },
+      {
+        "key": "region:Control Plane · Spring Boot :8080",
+        "kind": "region",
+        "label": "Control Plane · Spring Boot :8080",
+        "status": "removed",
+        "classifications": [
+          "scope"
+        ],
+        "changedFields": []
+      },
+      {
+        "key": "region:devsquad · Go 단일 프로세스",
+        "kind": "region",
+        "label": "devsquad · Go 단일 프로세스",
+        "status": "added",
+        "classifications": [
+          "scope"
+        ],
+        "changedFields": []
+      }
+    ]
+  },
+  "provenance": {
+    "changedFields": [
+      "/revision"
+    ],
+    "base": {
+      "revision": "fc62112157159b7949982c6cb6ba6afc706c6bd9",
+      "linkMode": "local-only"
+    },
+    "head": {
+      "revision": "1d44473ae6ee40305684eb70e481dab49596caae",
+      "linkMode": "local-only"
+    }
+  },
+  "identity": {
+    "components": "components[].id",
+    "connections": "connections[].id (required)",
+    "boundaries": "boundaries[].kind + boundaries[].label (derived)"
+  },
+  "view": {
+    "visualPreset": "classic"
+  },
+  "limitations": [
+    "Authored Architecture IR only; no runtime impact, causality, risk, or mergeability is inferred.",
+    "Boundary identity is conservatively derived from kind + label."
+  ],
+  "artifact": {
+    "sha256": "0ae186695bca416b6f44e07d07af7c2952a3fc15a3b5ed4f9027b178b54244ea",
+    "bytes": 2273082
+  },
+  "validation": {
+    "checksPassed": 28,
+    "checkCount": 28,
+    "baseComposition": "pass",
+    "headComposition": "pass"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "58d5c4e8-c1ec-45e8-bba1-9203362a1024",
+  "status": "current",
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/Users/lt-161/IdeaProjects/devsquad/.archify/architecture-go-migration-20261006-170000/head.json",
+  "output": "/Users/lt-161/IdeaProjects/devsquad/.archify/architecture-go-migration-20261006-170000/head.html",
+  "specification": {
+    "sha256": "688b1570bf016118bc5eb4c2e79481d7eb622b5aef2dded3b154157f6376b662",
+    "bytes": 7166
+  },
+  "artifact": {
+    "sha256": "3b5e2419520315629bb741ee33dd6d07d44d5cbe9ae1fa2698d5488207266c8f",
+    "bytes": 777988
+  }
+}

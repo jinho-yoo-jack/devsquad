@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "finalize",
+  "status": "pass",
+  "type": "architecture",
+  "quality": "showcase",
+  "specification": {
+    "path": "/Users/lt-161/IdeaProjects/devsquad/.archify/architecture-go-migration-20261006-170000/base.json",
+    "sha256": "198266cb58c388e3711b1b4207f7cbe80eca9a82751adb36b3edb2afa44c5c02",
+    "bytes": 12773
+  },
+  "artifact": {
+    "path": "/Users/lt-161/IdeaProjects/devsquad/.archify/architecture-go-migration-20261006-170000/base.html",
+    "sha256": "f57e7dbb8146b8fbf7fa35cc4fba10a52fd40c9fc74e7ad21e46c4f744b15324",
+    "bytes": 788187
+  },
+  "gates": {
+    "validate": "pass",
+    "deliver": "pass",
+    "check": "pass",
+    "browser-check": "pass"
+  },
+  "diagnostics": [],
+  "diagnosticSummary": {
+    "total": 0,
+    "shown": 0,
+    "truncated": false
+  },
+  "evidence": {
+    "receipt": "/Users/lt-161/IdeaProjects/devsquad/.archify/architecture-go-migration-20261006-170000/base.finalize.json",
+    "summaryReceipt": "/Users/lt-161/IdeaProjects/devsquad/.archify/architecture-go-migration-20261006-170000/base.finalize-summary.json",
+    "browserCheckReceipt": "/Users/lt-161/IdeaProjects/devsquad/.archify/architecture-go-migration-20261006-170000/base.browser-check.json"
+  },
+  "update": {
+    "status": "unavailable",
+    "installedVersion": null,
+    "availableVersion": null,
+    "releaseNotes": null,
+    "checkedAt": null,
+    "source": null,
+    "noticeRequired": false,
+    "noticeText": null,
+    "reason": "disabled"
+  },
+  "visualReview": "not-requested",
+  "durationMs": 2103
+}

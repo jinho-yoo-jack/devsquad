@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "DevSquad 이후 구조 (1d44473): Go 단일 서비스",
+    "output": ".archify/architecture-go-migration-20261006-170000/head.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "git@github.com-devsquad:jinho-yoo-jack/devsquad.git",
+      "link_mode": "local-only",
+      "revision": "1d44473ae6ee40305684eb70e481dab49596caae"
+    }
+  },
+  "components": [
+    { "id": "web", "type": "frontend", "label": "Web UI", "sublabel": "Next.js", "pos": [40, 300], "size": [130, 64],
+      "sources": [{ "path": "web/lib/api/client.ts", "line": 1, "end_line": 44, "label": "REST client" }, { "path": "web/lib/ws/connection.ts", "line": 1, "end_line": 187, "label": "WS connection" }] },
+    { "id": "http-api", "type": "backend", "label": "REST API", "sublabel": "huma + net/http", "pos": [230, 300], "size": [140, 64],
+      "sources": [{ "path": "internal/httpapi/http.go", "line": 72, "end_line": 100, "label": "Handler, /ws, /metrics" }, { "path": "internal/httpapi/http.go", "line": 142, "end_line": 150, "label": "approvals decide" }] },
+    { "id": "task-service", "type": "backend", "label": "TaskService", "sublabel": "WithTx 1개", "pos": [450, 190], "size": [150, 64],
+      "sources": [{ "path": "internal/app/task.go", "line": 35, "end_line": 100, "label": "CreateTask" }] },
+    { "id": "approval-service", "type": "backend", "label": "ApprovalService", "sublabel": "조건부 UPDATE", "pos": [450, 410], "size": [150, 64],
+      "sources": [{ "path": "internal/app/approval.go", "line": 51, "end_line": 138, "label": "UpdateApproval" }] },
+    { "id": "recovery", "type": "backend", "label": "Recovery Loop", "sublabel": "Timer → Reconcile", "pos": [720, 120], "size": [160, 64],
+      "sources": [{ "path": "internal/orchestrator/orchestrator.go", "line": 425, "end_line": 451, "label": "StartRecovery" }] },
+    { "id": "orchestrator", "type": "backend", "label": "Orchestrator", "sublabel": "Reconcile, claim, commit", "pos": [720, 300], "size": [170, 64], "tag": "attempt 펜싱",
+      "sources": [{ "path": "internal/orchestrator/orchestrator.go", "line": 70, "end_line": 176, "label": "Wake, Reconcile" }, { "path": "internal/orchestrator/orchestrator.go", "line": 178, "end_line": 340, "label": "run, claim, commit" }] },
+    { "id": "stage-runner", "type": "backend", "label": "Stage Runner", "sublabel": "ReAct loop", "pos": [980, 300], "size": [160, 64],
+      "sources": [{ "path": "internal/stage/runner.go", "line": 50, "end_line": 140, "label": "AgentRunner.Run" }] },
+    { "id": "llm", "type": "backend", "label": "LLM Registry", "sublabel": "anthropic / openai / ollama", "pos": [980, 140], "size": [180, 64],
+      "sources": [{ "path": "internal/llm/llm.go", "line": 42, "end_line": 77, "label": "LLM, Registry" }, { "path": "cmd/devsquad/main.go", "line": 64, "end_line": 72, "label": "provider wiring" }] },
+    { "id": "anthropic", "type": "external", "label": "LLM Provider", "sublabel": "Anthropic 등", "pos": [980, 0], "size": [150, 64],
+      "sources": [{ "path": "internal/llm/anthropic/anthropic.go", "line": 21, "end_line": 66, "label": "Messages.New" }] },
+    { "id": "sandbox", "type": "security", "label": "Tool Sandbox", "sublabel": "pathguard + write_paths", "pos": [1220, 300], "size": [170, 64],
+      "sources": [{ "path": "internal/tools/sandbox.go", "line": 39, "end_line": 104, "label": "check, Read, Write" }, { "path": "internal/tools/sandbox.go", "line": 164, "end_line": 200, "label": "Call" }] },
+    { "id": "workspace", "type": "backend", "label": "Workspace", "sublabel": "git Reset / Accept", "pos": [980, 480], "size": [160, 64],
+      "sources": [{ "path": "internal/workspace/git.go", "line": 115, "end_line": 165, "label": "Reset, Accept" }] },
+    { "id": "event-bus", "type": "messagebus", "label": "Emitter + Bus", "sublabel": "프로세스 내부", "pos": [450, 640], "size": [160, 64],
+      "sources": [{ "path": "internal/event/emitter.go", "line": 26, "end_line": 67, "label": "seq, INSERT, 커밋 후 Publish" }, { "path": "internal/event/bus.go", "line": 25, "end_line": 52, "label": "Subscribe, Publish" }] },
+    { "id": "ws-hub", "type": "backend", "label": "WebSocket Hub", "sublabel": "replay + live", "pos": [200, 640], "size": [140, 64],
+      "sources": [{ "path": "internal/ws/hub.go", "line": 48, "end_line": 150, "label": "ServeHTTP, replay" }] },
+    { "id": "postgres", "type": "database", "label": "PostgreSQL", "sublabel": "Task·Stage = checkpoint", "pos": [700, 640], "size": [210, 64], "tag": "advisory lock",
+      "sources": [{ "path": "internal/store/migrations/00002_orchestrator.sql", "line": 1, "end_line": 21, "label": "orchestrator 컬럼" }, { "path": "internal/store/store.go", "line": 39, "end_line": 61, "label": "WithTx, AfterCommit" }, { "path": "internal/store/instance.go", "line": 12, "end_line": 27, "label": "단일 인스턴스 락" }] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "devsquad · Go 단일 프로세스", "wraps": ["http-api", "task-service", "approval-service", "recovery", "orchestrator", "stage-runner", "llm", "sandbox", "workspace", "event-bus", "ws-hub"] }
+  ],
+  "connections": [
+    { "id": "web-rest", "from": "web", "to": "http-api", "label": "REST", "variant": "emphasis" },
+    { "id": "web-ws", "from": "web", "to": "ws-hub", "label": "WS subscribe" },
+    { "id": "api-task", "from": "http-api", "to": "task-service", "label": "create" },
+    { "id": "api-approval", "from": "http-api", "to": "approval-service", "label": "decide" },
+    { "id": "task-wake", "from": "task-service", "to": "orchestrator", "label": "커밋 후 Wake" },
+    { "id": "approval-wake", "from": "approval-service", "to": "orchestrator", "label": "커밋 후 Wake" },
+    { "id": "recovery-reconcile", "from": "recovery", "to": "orchestrator", "label": "Reconcile" },
+    { "id": "orch-stage", "from": "orchestrator", "to": "stage-runner", "label": "goroutine Run" },
+    { "id": "stage-llm", "from": "stage-runner", "to": "llm", "label": "Chat" },
+    { "id": "llm-provider", "from": "llm", "to": "anthropic", "label": "API" },
+    { "id": "stage-tools", "from": "stage-runner", "to": "sandbox", "label": "도구 호출" },
+    { "id": "orch-workspace", "from": "orchestrator", "to": "workspace", "label": "Reset/Accept" },
+    { "id": "orch-db", "from": "orchestrator", "to": "postgres", "label": "WithTx" },
+    { "id": "approval-db", "from": "approval-service", "to": "postgres", "label": "WithTx" },
+    { "id": "bus-ws", "from": "event-bus", "to": "ws-hub", "label": "Subscribe" }
+  ],
+  "cards": [
+    { "dot": "emerald", "title": "없어진 것", "items": ["CP ↔ AR 내부 HTTP, 내부 토큰", "Redis Stream, 컨슈머, resume_pending 재전송", "LangGraph 체크포인트 (langgraph 스키마)"] },
+    { "dot": "cyan", "title": "새로 생긴 것", "items": ["Reconcile: DB 상태를 읽어 실행 가능한 Stage만 goroutine 실행", "Emitter: 상태 변경과 이벤트를 같은 트랜잭션에 기록, 커밋 후 Bus Publish", "Workspace git 기준점으로 execute 재실행 시 write_paths 롤백"] }
+  ]
+}

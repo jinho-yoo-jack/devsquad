@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "f3c28ecc-e929-4ea0-9e9b-dd5c48a2bf68",
+  "status": "current",
+  "command": "deliver",
+  "type": "sequence",
+  "input": "/Users/lt-161/IdeaProjects/devsquad/.archify/sequence-approval-flow-20261006-171500/candidate.json",
+  "output": "/Users/lt-161/IdeaProjects/devsquad/.archify/sequence-approval-flow-20261006-171500/approval-flow.html",
+  "specification": {
+    "sha256": "4a827738ea11d95f1a6b388286f46e6f2179b044070eb582a63b08b69f4d80e6",
+    "bytes": 7025
+  },
+  "artifact": {
+    "sha256": "c145d92a631bc76545d3cf7bfbb818eecf01203542843567589c23a0a9c63257",
+    "bytes": 763522
+  }
+}
