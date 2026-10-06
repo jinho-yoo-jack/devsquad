@@ -47,9 +47,37 @@ describe("eventStore", () => {
     const s = useEventStore.getState();
     s.append(T, ev(1, "agent.tool_call", { call_id: "c1", tool: "write_file" }));
     s.append(T, ev(2, "agent.tool_result", { call_id: "c1", tool: "write_file", ok: true }));
-    const pair = useEventStore.getState().byTask[T].toolPairs["c1"];
+    const pair = useEventStore.getState().byTask[T].toolPairs["e1"];
     expect(pair.call.seq).toBe(1);
     expect(pair.result?.seq).toBe(2);
+  });
+
+  it("keeps reused tool call IDs isolated across parallel stages and retries", () => {
+    const s = useEventStore.getState();
+    const call = { call_id: "call_1", tool: "write_file" };
+    s.appendMany(T, [
+      ev(1, "agent.tool_call", call),
+      { ...ev(2, "agent.tool_call", call), stage_key: "review" },
+      { ...ev(3, "agent.tool_result", { ...call, ok: false }), stage_key: "review" },
+      ev(4, "agent.tool_result", { ...call, ok: true }),
+      ev(5, "agent.tool_call", call),
+      ev(6, "agent.tool_result", { ...call, ok: false }),
+    ]);
+    const pairs = useEventStore.getState().byTask[T].toolPairs;
+    expect(pairs.e1.result?.seq).toBe(4);
+    expect(pairs.e2.result?.seq).toBe(3);
+    expect(pairs.e5.result?.seq).toBe(6);
+  });
+
+  it("pairs late replay without mutating the previous snapshot", () => {
+    const s = useEventStore.getState();
+    s.append(T, ev(2, "agent.tool_result", { call_id: "c1", ok: true }));
+    s.append(T, ev(1, "agent.tool_call", { call_id: "c1", tool: "read_file" }));
+    expect(useEventStore.getState().byTask[T].toolPairs.e1.result?.seq).toBe(2);
+    s.append(T, ev(3, "agent.tool_call", { call_id: "c2" }));
+    const before = useEventStore.getState().byTask[T];
+    s.append(T, ev(4, "agent.tool_result", { call_id: "c2", ok: true }));
+    expect(before.toolPairs.e3.result).toBeUndefined();
   });
 
   it("replace() resets from a REST snapshot", () => {

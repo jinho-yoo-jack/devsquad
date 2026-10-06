@@ -11,6 +11,9 @@ import { useEventStore } from "@/lib/stores/eventStore";
 export function invalidationKeysFor(ev: TaskEvent): (string | number)[][] {
   const t = ev.task_id;
   switch (ev.type) {
+    case "agent.thinking":
+      // A gate-free plan can become executing without an approval transition event.
+      return ev.payload.iteration === 1 || ev.payload.iteration == null ? [["task", t]] : [];
     case "approval.requested":
     case "approval.decided":
       return [["task", t], ["approvals", t], ["approvals"]]; // 헤더 배지용 전체 목록 포함

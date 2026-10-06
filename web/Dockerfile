@@ -3,6 +3,8 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
+ARG CONTROL_PLANE_URL=http://localhost:8080
+ENV CONTROL_PLANE_URL=$CONTROL_PLANE_URL
 RUN npm run build
 
 FROM node:22-alpine

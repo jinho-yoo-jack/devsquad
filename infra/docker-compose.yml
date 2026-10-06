@@ -32,7 +32,10 @@ services:
     profiles: [full]
 
   web:
-    build: ../web
+    build:
+      context: ../web
+      args:
+        CONTROL_PLANE_URL: http://devsquad:8080
     environment:
       CONTROL_PLANE_URL: http://devsquad:8080
     ports: ["127.0.0.1:3000:3000"]

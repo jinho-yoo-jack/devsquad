@@ -134,7 +134,7 @@ tags: [api, rest, websocket, redis-stream, discord, openapi]
 | `stage.started` | `{}` | orchestrator / stage |
 | `stage.completed` | `{deliverable_id}` | orchestrator / stage |
 | `stage.blocked` | `{reason, last_feedback}` | orchestrator / stage |
-| `agent.thinking` | `{summary}` (≤ 200자) | orchestrator / stage |
+| `agent.thinking` | `{summary, iteration?, model?}` (`summary`: plan/execute, `iteration`: 단계 실행 내 1부터 시작하는 모델 호출 회차) | orchestrator / stage |
 | `agent.tool_call` | `{call_id, tool, args_summary}` | orchestrator / stage |
 | `agent.tool_result` | `{call_id, tool, ok, summary, duration_ms}` | orchestrator / stage |
 | `agent.message` | `{text}` | orchestrator / stage |
@@ -146,6 +146,8 @@ tags: [api, rest, websocket, redis-stream, discord, openapi]
 | `pr.review_comment` | `{url, author, body_preview}` | 후속 구현 |
 
 모든 이벤트는 `task.event_seq` 증가와 `task_event` INSERT를 같은 트랜잭션에서 처리한다. `approval.requested`와 `deliverable.produced`에는 생성 시점부터 DB id가 들어간다. 커밋 후 Bus가 WS에 전달하며 REST 재생과 같은 envelope을 사용한다. 느린 구독자는 연결을 종료하고 `from_seq`로 복구한다.
+
+`agent.thinking`은 각 모델 호출 직전에 발행한다. UI는 이를 이용해 도구 실행 완료 후 모델 응답 대기로 바뀌는 시점을 표시한다. `iteration`, `model`이 없는 과거 이벤트도 지원한다. 도구 호출 ID는 다른 단계나 재시도에서 재사용될 수 있으므로 `stage_key`, `agent`, `call_id`로 결과를 연결하고 호출 `event_id`별로 기록을 보존한다.
 
 ## 4. 내부 실행
 

@@ -2,7 +2,7 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
-import { fetchEvents } from "@/lib/api/tasks";
+import { syncTaskEvents } from "@/lib/queries/eventSync";
 import { useConnectionStore } from "@/lib/stores/connectionStore";
 import { useEventStore } from "@/lib/stores/eventStore";
 import { WsConnection } from "@/lib/ws/connection";
@@ -26,11 +26,22 @@ export function useTaskSocket(taskId: string | null) {
         url: wsUrl(),
         getLastSeq: (id) => useEventStore.getState().byTask[id]?.lastSeq ?? 0,
         onEvent: (ev) => handlerRef.current(ev),
-        onGap: async (id, from) => {
-          const page = await fetchEvents(id, from, 500);
-          useEventStore.getState().appendMany(id, page.items);
+        onGap: async (id, from, to) => {
+          try {
+            await syncTaskEvents(id, from, to);
+          } catch {
+            // The query exposes replay errors/retry UI and repairs any unresolved gap.
+            void qc.invalidateQueries({ queryKey: ["events", id] });
+          }
         },
-        onStatus: (status, attempt) => useConnectionStore.getState().set({ status, attempt }),
+        onStatus: (status, attempt) => {
+          useConnectionStore.getState().set({ status, attempt, lastError: null });
+          if (status === "open") {
+            void qc.invalidateQueries({ queryKey: ["task"] });
+            void qc.invalidateQueries({ queryKey: ["approvals"] });
+            void qc.invalidateQueries({ queryKey: ["events"] });
+          }
+        },
         onServerError: (code) => useConnectionStore.getState().set({ lastError: code }),
       });
       shared.connect();

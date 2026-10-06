@@ -1,8 +1,8 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createTask, decideApproval, fetchEvents, fetchPendingApprovals, fetchProjects, fetchTask, fetchTaskApprovals, fetchTasks, taskAction, type DecideBody } from "@/lib/api/tasks";
-import { useEventStore } from "@/lib/stores/eventStore";
+import { createTask, decideApproval, fetchPendingApprovals, fetchProjects, fetchTask, fetchTaskApprovals, fetchTasks, taskAction, type DecideBody } from "@/lib/api/tasks";
+import { syncTaskEvents } from "./eventSync";
 
 /** 13-Frontend 설계 §5 쿼리 키. */
 export const keys = {
@@ -51,23 +51,11 @@ export function useDecide(taskId: string) {
   });
 }
 
-/** 초기 이벤트 로드 → eventStore.replace. 이후는 WS 가 append. */
+/** Initial/reconnect replay merges with events already received over WS. */
 export function useInitialEvents(taskId: string) {
-  const replace = useEventStore((s) => s.replace);
   return useQuery({
     queryKey: ["events", taskId, "initial"],
-    queryFn: async () => {
-      const all = [] as Awaited<ReturnType<typeof fetchEvents>>["items"];
-      let after = 0;
-      for (let i = 0; i < 20; i++) {
-        const page = await fetchEvents(taskId, after, 500);
-        all.push(...page.items);
-        if (page.nextAfterSeq == null) break;
-        after = page.nextAfterSeq;
-      }
-      replace(taskId, all);
-      return all.length;
-    },
+    queryFn: () => syncTaskEvents(taskId),
     staleTime: Infinity,
   });
 }

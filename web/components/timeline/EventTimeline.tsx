@@ -9,7 +9,7 @@ import { EventRow } from "./EventRow";
 const HIDDEN_TYPES = new Set(["usage"]); // 비용은 별도 미터. 타임라인 소음 방지.
 
 /** 12-디자인 §3.3 타임라인 — 가상 스크롤, tool_call/result 한 행, 자동 스크롤(위로 올리면 멈춤). */
-export function EventTimeline({ taskId, agentFilter }: { taskId: string; agentFilter?: string | null }) {
+export function EventTimeline({ taskId, stageFilter }: { taskId: string; stageFilter?: string | null }) {
   const bucket = useEventStore((s) => s.byTask[taskId]);
   const events = bucket?.events ?? [];
   const pairs = bucket?.toolPairs ?? {};
@@ -18,12 +18,12 @@ export function EventTimeline({ taskId, agentFilter }: { taskId: string; agentFi
     const out: TaskEvent[] = [];
     for (const ev of events) {
       if (HIDDEN_TYPES.has(ev.type)) continue;
-      if (agentFilter && ev.agent !== agentFilter) continue;
+      if (stageFilter && ev.stage_key !== stageFilter) continue;
       if (ev.type === "agent.tool_result") continue; // call 행에 접힘
       out.push(ev);
     }
     return out;
-  }, [events, agentFilter]);
+  }, [events, stageFilter]);
 
   const parentRef = useRef<HTMLDivElement>(null);
   const [autoScroll, setAutoScroll] = useState(true);
@@ -58,11 +58,10 @@ export function EventTimeline({ taskId, agentFilter }: { taskId: string; agentFi
           <div style={{ height: virt.getTotalSize(), position: "relative" }}>
             {virt.getVirtualItems().map((v) => {
               const ev = rows[v.index];
-              const callId = (ev.payload as Record<string, unknown>).call_id;
               return (
                 <div key={ev.event_id} data-index={v.index} ref={virt.measureElement}
                   style={{ position: "absolute", top: 0, left: 0, width: "100%", transform: `translateY(${v.start}px)` }}>
-                  <EventRow ev={ev} pair={typeof callId === "string" ? pairs[callId] : undefined} />
+                  <EventRow ev={ev} pair={pairs[ev.event_id]} />
                 </div>
               );
             })}

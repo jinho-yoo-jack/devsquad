@@ -5,8 +5,8 @@ import type { TaskEvent } from "@/lib/domain/events";
  * 13-Frontend 설계 §5 — 이벤트 스트림 스토어.
  * REST 가 진실, WS 는 신호. 타임라인(이벤트 자체)만 여기 append 한다.
  * - seq 중복은 무시, 정렬 유지 (WS 와 REST replay 가 섞여 들어와도 안전)
- * - agent.thinking 의 최신 요약을 role 별로 따로 유지 → AgentCard 가 O(1) 로 읽음
- * - tool_call / tool_result 는 call_id 로 페어링해 타임라인에서 한 행으로 접는다
+ * - thinking 은 기존 역할별 요약 캐시. 작업 현황은 stage_key 별로 activity.ts 에서 집계
+ * - tool_call / tool_result 는 stage·agent·call_id 로 연결하고 호출 event_id 별로 보존한다
  */
 
 export type ToolPair = { call: TaskEvent; result?: TaskEvent };
@@ -16,6 +16,7 @@ export type TaskEvents = {
   lastSeq: number;
   thinking: Record<string, string>;
   toolPairs: Record<string, ToolPair>;
+  pendingToolCalls: Record<string, string>;
 };
 
 type EventStore = {
@@ -27,7 +28,7 @@ type EventStore = {
   clear: (taskId: string) => void;
 };
 
-export const emptyTaskEvents = (): TaskEvents => ({ events: [], lastSeq: 0, thinking: {}, toolPairs: {} });
+export const emptyTaskEvents = (): TaskEvents => ({ events: [], lastSeq: 0, thinking: {}, toolPairs: {}, pendingToolCalls: {} });
 
 /** 정렬된 배열에 seq 순으로 삽입. 중복(seq 같음)은 false 반환. */
 function insertSorted(events: TaskEvent[], ev: TaskEvent): boolean {
@@ -50,11 +51,16 @@ function applyDerived(t: TaskEvents, ev: TaskEvent): void {
   }
   const callId = ev.payload["call_id"];
   if (typeof callId === "string") {
-    if (ev.type === "agent.tool_call") t.toolPairs[callId] = { ...t.toolPairs[callId], call: ev };
-    else if (ev.type === "agent.tool_result") {
-      const existing = t.toolPairs[callId];
-      if (existing) existing.result = ev;
-      else t.toolPairs[callId] = { call: ev, result: ev }; // result 만 먼저 온 경우(재정렬) — call 이 오면 덮어씀
+    const key = JSON.stringify([ev.stage_key, ev.agent, callId]);
+    if (ev.type === "agent.tool_call") {
+      t.toolPairs[ev.event_id] = { call: ev };
+      t.pendingToolCalls[key] = ev.event_id;
+    } else if (ev.type === "agent.tool_result") {
+      const id = t.pendingToolCalls[key];
+      if (id) {
+        t.toolPairs[id] = { ...t.toolPairs[id], result: ev };
+        delete t.pendingToolCalls[key];
+      }
     }
   }
 }
@@ -62,6 +68,7 @@ function applyDerived(t: TaskEvents, ev: TaskEvent): void {
 function rebuildDerived(t: TaskEvents): void {
   t.thinking = {};
   t.toolPairs = {};
+  t.pendingToolCalls = {};
   for (const ev of t.events) applyDerived(t, ev);
 }
 
@@ -78,6 +85,7 @@ export const useEventStore = create<EventStore>((set, get) => ({
         lastSeq: prev.lastSeq,
         thinking: { ...prev.thinking },
         toolPairs: { ...prev.toolPairs },
+        pendingToolCalls: { ...prev.pendingToolCalls },
       };
       let changed = false;
       let needsRebuild = false;

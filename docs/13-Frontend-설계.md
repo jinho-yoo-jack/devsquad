@@ -115,12 +115,15 @@ flowchart LR
 type EventStore = {
   byTask: Record<TaskId, { events: TaskEvent[]; lastSeq: number; thinking: Record<Role, string> }>;
   append(taskId, event): void;      // seq 중복 무시, 정렬 유지, thinking 갱신
-  replace(taskId, events): void;    // REST 초기 로드
+  appendMany(taskId, events): void; // REST 초기 로드·재연결 재생 병합
+  replace(taskId, events): void;    // 명시적인 스냅샷 초기화용
   prune(taskId, keepLast = 5000): void;
 };
 ```
 
-`agent.thinking`은 events에도 넣지만 `thinking[role]`로 최신 요약을 따로 유지해 AgentCard가 O(1)로 읽는다.
+`thinking[role]`은 기존 요약 캐시로 유지한다. 에이전트 작업 현황은 `stage_key`별 이벤트를 집계한다. 같은 역할이 여러 단계를 담당해도 현재 작업과 도구 결과가 섞이지 않는다. REST 상태가 승인 대기·완료·취소·실패이면 과거 도구 호출을 현재 작업으로 표시하지 않는다.
+
+초기 로드와 재연결 시 REST 이벤트의 모든 페이지를 `appendMany`로 병합한다. 로드 중 수신한 최신 WS 이벤트를 덮어쓰지 않는다. 모델 실행의 첫 `agent.thinking` 이벤트는 Task를 재조회하여 승인 게이트가 없는 계획 → 실행 전이도 반영한다. Next.js는 `/api/*`와 `/ws`를 Go 서비스로 프록시한다.
 
 ### uiStore
 
@@ -138,7 +141,9 @@ type EventStore = {
 
 `ApprovalPanel`의 결정은 `useMutation`으로 `POST /api/approvals/{id}/decide`를 호출하며 낙관적으로 패널을 "처리 중"으로 바꾸고, 409(이미 결정됨)를 받으면 토스트 "Discord에서 이미 처리되었습니다"와 함께 쿼리를 무효화한다. 반려 피드백은 zod로 최소 5자 검증. edit은 CodeMirror 내용을 `edited_content`로 보낸다.
 
-`EventTimeline`은 `useVirtualizer`로 렌더하고, `tool_call`과 같은 `call_id`의 `tool_result`를 하나의 `ToolCallPair` 행으로 묶는다(스토어에서 페어링). 자동 스크롤은 `scrollTop + clientHeight >= scrollHeight - 40`일 때만 유지.
+`AgentActivityPanel`은 단계별 현재 동작, 도구 결과, 대기 이유, 모델·호출 회차, 마지막 활동 시각을 카드로 표시한다. 카드를 선택하면 해당 `stage_key`로 타임라인을 필터링한다. 연결이 끊어지면 마지막 수신 상태임을 표시한다.
+
+`EventTimeline`은 `useVirtualizer`로 렌더하고, 동일 단계·팀원의 `call_id`로 `tool_result`를 연결해 호출 `event_id`별 `ToolCallPair` 행으로 보존한다. 재시도에서 ID를 재사용해도 이전 결과가 덮어써지지 않는다. 자동 스크롤은 `scrollTop + clientHeight >= scrollHeight - 40`일 때만 유지.
 
 `PipelineBar`는 `task.stages`를 `depends_on` 기준으로 위상 정렬해 열(column)로 배치하고, 같은 열의 Stage를 세로로 쌓는다. 순수 함수 `layoutStages(stages): Column[]`로 분리해 단위 테스트한다.
 

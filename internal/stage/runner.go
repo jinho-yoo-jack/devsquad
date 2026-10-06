@@ -61,9 +61,6 @@ func (a *AgentRunner) Run(ctx context.Context, in Input) (Result, error) {
 		return out, err
 	}
 	system, user := Prompts(in, agent)
-	if err = in.Emit(ctx, "agent.thinking", map[string]any{"summary": in.Mode}); err != nil {
-		return out, err
-	}
 	messages := []llm.Message{{Role: "user", Text: user}}
 	var specs []llm.ToolSpec
 	if in.Mode == "execute" {
@@ -77,8 +74,15 @@ func (a *AgentRunner) Run(ctx context.Context, in Input) (Result, error) {
 	if budget == nil {
 		budget = llm.NoopBudget{}
 	}
+	modelName := Model(in.Definition, in.Stage)
+	if a.Registry.ForceFake || modelName == "" || modelName == "fake" {
+		modelName = "fake/echo"
+	}
 	for i := 0; i < limit; i++ {
 		if err = budget.Check(ctx, in.TaskID); err != nil {
+			return out, err
+		}
+		if err = in.Emit(ctx, "agent.thinking", map[string]any{"summary": in.Mode, "iteration": i + 1, "model": modelName}); err != nil {
 			return out, err
 		}
 		turn, e := model.Chat(ctx, llm.ChatRequest{System: system, Messages: messages, Tools: specs, MaxTokens: 8192})

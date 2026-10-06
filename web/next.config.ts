@@ -4,9 +4,12 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   output: "standalone",
   async rewrites() {
-    // 13-Frontend 설계 §2: Control Plane REST 를 same-origin 으로 프록시
+    // REST and WebSocket share the browser origin and the Go service destination.
     const target = process.env.CONTROL_PLANE_URL ?? "http://localhost:8080";
-    return [{ source: "/api/:path*", destination: `${target}/api/:path*` }];
+    return [
+      { source: "/api/:path*", destination: `${target}/api/:path*` },
+      { source: "/ws", destination: `${target}/ws` },
+    ];
   },
 };
 

@@ -20,6 +20,7 @@ flowchart LR
 - 프로세스 재시작 복구, 실행 시도 번호를 통한 중복 결과 차단, 단계 쓰기 경로별 파일 복원
 - 트랜잭션 이벤트 저장, 커밋 후 내부 Bus 전송, WebSocket 재생·느린 구독자 분리
 - 공식 LLM SDK, Anthropic 프롬프트 캐시, ReAct 파일 도구, 사용량 기록, `/metrics`
+- Task 상세의 에이전트별 현재 작업·도구 결과·대기 이유 표시, 실시간 갱신과 단계별 타임라인 필터
 
 Discord, GitHub clone/push/PR 생성, JWT 인증, 토큰 예산 강제는 후속 범위입니다. `publisher`는 PR 초안만 작성합니다. 현재는 인스턴스 1개를 실행하며, 같은 DB 스키마에 두 번째 서비스를 띄우면 시작을 거부합니다.
 
@@ -93,7 +94,7 @@ DEVSQUAD_REAL_LLM_TEST=true go test -v -run TestLiveOpenAIPipeline ./internal/in
 | `internal/llm`, `tools`, `workspace` | SDK, 파일 도구, Git 기준점 |
 | `internal/event`, `ws` | 이벤트 원장과 실시간 구독 |
 | `internal/integration` | 실제 PostgreSQL 통합·재시작·모델 테스트 |
-| `web` | 기존 Next.js 화면 |
+| `web` | Next.js 작업·승인 화면, 에이전트 작업 현황 |
 
 - [19 · 통합 서비스 설계](docs/19-Go-통합-서비스-설계.md)
 - [20 · 구현·검증 기록](docs/20-Go-통합-서비스-구현-검증.md)

@@ -8,7 +8,7 @@ import { useTaskSocket } from "@/lib/ws/useTaskSocket";
 import { useEventStore } from "@/lib/stores/eventStore";
 import { useConnectionStore } from "@/lib/stores/connectionStore";
 import { PipelineBar } from "@/components/pipeline/PipelineBar";
-import { AgentCard } from "@/components/agents/AgentCard";
+import { AgentActivityPanel } from "@/components/agents/AgentActivityPanel";
 import { EventTimeline } from "@/components/timeline/EventTimeline";
 import { ApprovalPanel } from "@/components/approval/ApprovalPanel";
 import { StatusBadge } from "@/components/common/StatusBadge";
@@ -21,12 +21,13 @@ export default function TaskDetailPage() {
   const task = useTask(id);
   const approvals = useTaskApprovals(id);
   const action = useTaskAction(id);
-  useInitialEvents(id);
+  const events = useInitialEvents(id);
   useTaskSocket(id);
 
   const bucket = useEventStore((s) => s.byTask[id]);
   const conn = useConnectionStore((s) => s.status);
-  const [agentFilter, setAgentFilter] = useState<string | null>(null);
+  const [stageFilter, setStageFilter] = useState<string | null>(null);
+  const selectStage = (key: string) => setStageFilter((cur) => cur === key ? null : key);
 
   const pending = useMemo(() => approvals.data?.filter((a) => a.status === "pending") ?? [], [approvals.data]);
   const history = useMemo(() => approvals.data?.filter((a) => a.status !== "pending").slice().reverse() ?? [], [approvals.data]);
@@ -35,11 +36,6 @@ export default function TaskDetailPage() {
   if (task.isPending) return <p className="text-sm" style={{ color: "var(--text-2)" }}>불러오는 중…</p>;
   if (task.isError || !task.data) return <InlineError message="Task를 불러오지 못했습니다." onRetry={() => task.refetch()} />;
   const t = task.data;
-  const lastToolByAgent: Record<string, string> = {};
-  for (const p of Object.values(bucket?.toolPairs ?? {})) {
-    const a = p.call.agent ?? "";
-    lastToolByAgent[a] = String((p.call.payload as Record<string, unknown>).tool ?? "");
-  }
 
   return (
     <section className="space-y-4">
@@ -57,24 +53,19 @@ export default function TaskDetailPage() {
         </div>
       </header>
 
-      <PipelineBar stages={t.stages} selected={agentFilter && t.stages.find((s) => s.role === agentFilter)?.key} onSelect={(k) => {
-        const role = t.stages.find((s) => s.key === k)?.role ?? null;
-        setAgentFilter((cur) => (cur === role ? null : role));
-      }} />
+      <PipelineBar stages={t.stages} selected={stageFilter} onSelect={selectStage} />
+
+      {events.isPending && <p role="status" className="text-xs" style={{ color: "var(--text-2)" }}>활동 기록을 불러오는 중…</p>}
+      {events.isError && <InlineError message="활동 기록을 불러오지 못했습니다. 최근 작업 정보가 누락될 수 있습니다." onRetry={() => events.refetch()} />}
+      <AgentActivityPanel task={t} events={bucket?.events ?? []} selected={stageFilter} onSelect={selectStage} live={conn === "open"} />
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_480px]">
         <div className="flex min-h-[60vh] flex-col gap-3">
-          <div className="flex gap-2 overflow-x-auto">
-            {t.stages.map((s) => (
-              <AgentCard key={s.key} stage={s} thinking={bucket?.thinking[s.role]} lastTool={lastToolByAgent[s.role]}
-                selected={agentFilter === s.role} onClick={() => setAgentFilter((cur) => (cur === s.role ? null : s.role))} />
-            ))}
-          </div>
           <div className="flex items-center justify-between text-xs" style={{ color: "var(--text-2)" }}>
-            <span>타임라인 {agentFilter ? `· ${agentFilter} 만` : ""} · {bucket?.events.length ?? 0}개</span>
-            {agentFilter && <button className="underline" onClick={() => setAgentFilter(null)}>필터 해제</button>}
+            <span>타임라인 {stageFilter ? `· ${stageFilter}` : "· 전체 단계"}</span>
+            {stageFilter && <button className="underline" onClick={() => setStageFilter(null)}>필터 해제</button>}
           </div>
-          <div className="min-h-0 flex-1"><EventTimeline taskId={id} agentFilter={agentFilter} /></div>
+          <div className="min-h-0 flex-1"><EventTimeline taskId={id} stageFilter={stageFilter} /></div>
         </div>
 
         <aside className="space-y-3">
