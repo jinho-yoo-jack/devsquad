@@ -117,7 +117,7 @@ func newHarness(t *testing.T, p string, runner stage.Runner) *harness {
 	h.approvals = &app.ApprovalService{Store: h.db, Emitter: h.emitter}
 	h.restart(runner)
 	hub := ws.New(h.db, h.bus)
-	h.server = httptest.NewServer(httpapi.Handler(h.projects, h.tasks, h.approvals, hub, nil))
+	h.server = httptest.NewServer(httpapi.Handler(h.projects, h.tasks, h.approvals, hub, nil, nil))
 	t.Cleanup(func() { h.engine.Close(); hub.Close(); h.server.Close() })
 	return h
 }

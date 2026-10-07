@@ -22,8 +22,9 @@ flowchart LR
 - 공식 LLM SDK, Anthropic 프롬프트 캐시, ReAct 파일 도구, 사용량 기록, `/metrics`
 - Task 상세의 에이전트별 현재 작업·도구 결과·대기 이유 표시, 실시간 갱신과 단계별 타임라인 필터
 - Task별 토큰 예산: 모델 호출 전 검사, 초과 시 자동 일시정지(`run.paused{reason:"budget"}`), 증액 후 재개
+- 단일 사용자 로그인: 관리자 비밀번호로 장기 JWT(HttpOnly 쿠키 또는 Bearer)를 발급하고 API·WebSocket에 적용
 
-Discord, GitHub clone/push/PR 생성, JWT 인증은 후속 범위입니다. `publisher`는 PR 초안만 작성합니다. 현재는 인스턴스 1개를 실행하며, 같은 DB 스키마에 두 번째 서비스를 띄우면 시작을 거부합니다.
+Discord, GitHub clone/push/PR 생성은 후속 범위입니다. `publisher`는 PR 초안만 작성합니다. 현재는 인스턴스 1개를 실행하며, 같은 DB 스키마에 두 번째 서비스를 띄우면 시작을 거부합니다.
 
 ## 실행
 
@@ -31,11 +32,12 @@ Discord, GitHub clone/push/PR 생성, JWT 인증은 후속 범위입니다. `pub
 
 ```bash
 cp infra/.env.example infra/.env
-# infra/.env에서 DEVSQUAD_FAKE_LLM=true로 설정하면 모델 호출 없이 실행합니다.
+# infra/.env에서 DEVSQUAD_ADMIN_PASSWORD와 DEVSQUAD_JWT_SECRET(32자 이상, 예: openssl rand -hex 32)을 설정합니다.
+# DEVSQUAD_FAKE_LLM=true로 설정하면 모델 호출 없이 실행합니다.
 docker compose -f infra/docker-compose.yml --profile full up --build
 ```
 
-- 웹: http://localhost:3000
+- 웹: http://localhost:3000 (관리자 비밀번호로 로그인)
 - 서비스: http://localhost:8080/api/v1/health
 - API 문서: http://localhost:8080/docs
 
@@ -46,7 +48,8 @@ docker compose -f infra/docker-compose.yml --profile full up --build
 ```bash
 docker compose -f infra/docker-compose.yml up -d --wait postgres
 cp infra/.env.example .env
-# .env에서 DEVSQUAD_FAKE_LLM=true 또는 모델 키를 설정합니다.
+# .env에서 DEVSQUAD_FAKE_LLM=true 또는 모델 키, 그리고 로그인 비밀번호·JWT 시크릿을 설정합니다.
+# 로컬에서 인증 없이 쓰려면 DEVSQUAD_AUTH_DISABLED=true를 명시합니다.
 make run
 
 # 별도 터미널

@@ -17,6 +17,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/jinho-yoo-jack/devsquad/internal/app"
+	"github.com/jinho-yoo-jack/devsquad/internal/auth"
 	"github.com/jinho-yoo-jack/devsquad/internal/config"
 	"github.com/jinho-yoo-jack/devsquad/internal/event"
 	"github.com/jinho-yoo-jack/devsquad/internal/httpapi"
@@ -84,7 +85,13 @@ func run() error {
 	approvals := &app.ApprovalService{Store: db, Emitter: emitter, Coordinator: engine}
 	failures := prometheus.NewCounter(prometheus.CounterOpts{Name: "devsquad_notifier_failures_total", Help: "Notification failures and subscriber overflows."})
 	prometheus.MustRegister(failures)
-	server := &http.Server{Addr: cfg.HTTPAddr, Handler: httpapi.Handler(projects, tasks, approvals, hub, promhttp.Handler()), ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 60 * time.Second}
+	var authn *auth.Authenticator
+	if cfg.AuthDisabled {
+		slog.Warn("[Auth] Authentication disabled; use only for local development")
+	} else {
+		authn = &auth.Authenticator{Password: cfg.AdminPassword, Secret: []byte(cfg.JWTSecret), TTL: cfg.JWTTTL}
+	}
+	server := &http.Server{Addr: cfg.HTTPAddr, Handler: httpapi.Handler(projects, tasks, approvals, hub, promhttp.Handler(), authn), ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 60 * time.Second}
 	engine.StartRecovery(cfg.RecoveryInterval)
 	group, gctx := errgroup.WithContext(ctx)
 	group.Go(func() error {

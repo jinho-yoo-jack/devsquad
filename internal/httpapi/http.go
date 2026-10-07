@@ -13,6 +13,7 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 
 	"github.com/jinho-yoo-jack/devsquad/internal/app"
+	"github.com/jinho-yoo-jack/devsquad/internal/auth"
 	"github.com/jinho-yoo-jack/devsquad/internal/domain"
 )
 
@@ -60,7 +61,7 @@ type response[T any] struct{ Body T }
 var errorsOnce sync.Once
 
 func register[I, O any](api huma.API, id, method, path string, status int, fn func(context.Context, *I) (O, error)) {
-	huma.Register(api, huma.Operation{OperationID: id, Method: method, Path: path, DefaultStatus: status, MaxBodyBytes: 4 << 20, Errors: []int{400, 404, 409, 500}}, func(ctx context.Context, in *I) (*response[O], error) {
+	huma.Register(api, huma.Operation{OperationID: id, Method: method, Path: path, DefaultStatus: status, MaxBodyBytes: 4 << 20, Errors: []int{400, 401, 404, 409, 500}}, func(ctx context.Context, in *I) (*response[O], error) {
 		v, e := fn(ctx, in)
 		if e != nil {
 			var apiErr *domain.Error
@@ -73,7 +74,9 @@ func register[I, O any](api huma.API, id, method, path string, status int, fn fu
 		return &response[O]{v}, nil
 	})
 }
-func Handler(p *app.ProjectService, t *app.TaskService, a *app.ApprovalService, ws http.Handler, metrics http.Handler) http.Handler {
+
+// Handler serves the API. A nil authn disables authentication (local development).
+func Handler(p *app.ProjectService, t *app.TaskService, a *app.ApprovalService, ws http.Handler, metrics http.Handler, authn *auth.Authenticator) http.Handler {
 	errorsOnce.Do(func() {
 		huma.NewError = func(status int, message string, errs ...error) huma.StatusError {
 			if status == 422 {
@@ -89,6 +92,10 @@ func Handler(p *app.ProjectService, t *app.TaskService, a *app.ApprovalService, 
 	ProjectController{p}.Register(api)
 	TaskController{t}.Register(api)
 	ApprovalController{a}.Register(api)
+	registerMe(api)
+	if authn != nil {
+		AuthController{authn}.Register(api)
+	}
 	health := func(ctx context.Context, _ *Empty) (map[string]any, error) {
 		if err := t.Store.Pool.Ping(ctx); err != nil {
 			return nil, err
@@ -103,7 +110,10 @@ func Handler(p *app.ProjectService, t *app.TaskService, a *app.ApprovalService, 
 	if metrics != nil {
 		mux.Handle("GET /metrics", metrics)
 	}
-	return mux
+	if authn == nil {
+		return mux
+	}
+	return authn.Middleware(mux)
 }
 func (c ProjectController) Register(api huma.API) {
 	register(api, "projects-list", "GET", "/api/v1/projects", 200, func(ctx context.Context, _ *Empty) ([]app.ProjectEntity, error) { return c.Service.FetchProjects(ctx) })
@@ -133,7 +143,7 @@ func (c TaskController) Register(api huma.API) {
 	})
 	register(api, "tasks-get", "GET", "/api/v1/tasks/{id}", 200, func(ctx context.Context, in *ID) (app.TaskResponse, error) { return c.Service.FetchTask(ctx, in.ID) })
 	register(api, "tasks-create", "POST", "/api/v1/tasks", 201, func(ctx context.Context, in *CreateTask) (app.TaskResponse, error) {
-		return c.Service.CreateTask(ctx, in.Body, in.User)
+		return c.Service.CreateTask(ctx, in.Body, actor(ctx, in.User))
 	})
 	for _, action := range []string{"pause", "resume", "cancel"} {
 		register(api, "tasks-"+action, "POST", "/api/v1/tasks/{id}/"+action, 200, func(ctx context.Context, in *ID) (app.TaskResponse, error) {
@@ -159,7 +169,7 @@ func (c ApprovalController) Register(api huma.API) {
 		return c.Service.FetchApproval(ctx, in.ID)
 	})
 	register(api, "approvals-decide", "POST", "/api/v1/approvals/{id}/decide", 200, func(ctx context.Context, in *Decide) (app.DecidedResponse, error) {
-		return c.Service.UpdateApproval(ctx, in.ID, in.Body, in.User)
+		return c.Service.UpdateApproval(ctx, in.ID, in.Body, actor(ctx, in.User))
 	})
 	register(api, "tasks-approvals", "GET", "/api/v1/tasks/{id}/approvals", 200, func(ctx context.Context, in *TaskApprovalQuery) ([]app.ApprovalEntity, error) {
 		var status *string

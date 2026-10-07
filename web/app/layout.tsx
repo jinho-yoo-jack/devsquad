@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Providers } from "./providers";
+import { SessionMenu } from "@/components/auth/SessionMenu";
 
 export const metadata: Metadata = {
   title: "DevSquad",
@@ -14,7 +15,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Providers>
           <header className="flex items-center justify-between border-b px-6 py-3" style={{ borderColor: "var(--border)" }}>
             <span className="font-semibold">DevSquad</span>
-            <span className="text-sm" style={{ color: "var(--text-2)" }}>에이전트 작업 모니터링</span>
+            <div className="flex items-center gap-4">
+              <span className="text-sm" style={{ color: "var(--text-2)" }}>에이전트 작업 모니터링</span>
+              <SessionMenu />
+            </div>
           </header>
           <main className="mx-auto max-w-6xl px-6 py-8">{children}</main>
         </Providers>
