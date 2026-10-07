@@ -115,6 +115,9 @@ func (r Reader) Approvals(ctx context.Context, task, status *string) ([]domain.A
 	b, e := r.Q.ListApprovals(ctx, sqlc.ListApprovalsParams{TaskID: task, Status: status})
 	return decodeList[domain.ApprovalEntity](b, e)
 }
+func (r Reader) TokensUsed(ctx context.Context, id string) (int64, error) {
+	return r.Q.TaskTokensUsed(ctx, id)
+}
 func (r Reader) Events(ctx context.Context, id string, after int64, limit int) ([]domain.Event, error) {
 	b, e := r.Q.ListEvents(ctx, sqlc.ListEventsParams{TaskID: id, Seq: after, Column3: int(limit)})
 	return decodeList[domain.Event](b, e)

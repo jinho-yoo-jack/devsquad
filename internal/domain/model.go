@@ -21,6 +21,7 @@ type TaskEntity struct {
 	Workspace       string          `json:"workspace"`
 	Version         int             `json:"version"`
 	EventSeq        int64           `json:"event_seq"`
+	TokenBudget     int64           `json:"token_budget"`
 	ID              string          `json:"id"`
 	ProjectID       string          `json:"project_id"`
 	Command         string          `json:"command"`

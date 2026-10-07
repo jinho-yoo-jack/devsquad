@@ -83,8 +83,12 @@ func (s *TaskService) CreateTask(ctx context.Context, r CreateTaskRequest, user 
 	if e != nil {
 		return out, e
 	}
+	budget := p.TokenBudget
+	if d.Pipeline.Policy.TokenBudget != nil {
+		budget = *d.Pipeline.Policy.TokenBudget
+	}
 	e = s.Store.WithTx(ctx, func(tx *store.Tx) error {
-		if e := tx.Q.CreateTask(ctx, sqlc.CreateTaskParams{ID: id, ProjectID: r.ProjectID, Command: strings.TrimSpace(r.Command), CreatedBy: user, Pipeline: raw, Workspace: &dir}); e != nil {
+		if e := tx.Q.CreateTask(ctx, sqlc.CreateTaskParams{ID: id, ProjectID: r.ProjectID, Command: strings.TrimSpace(r.Command), CreatedBy: user, Pipeline: raw, Workspace: &dir, TokenBudget: budget}); e != nil {
 			return e
 		}
 		for _, st := range d.Pipeline.Stages {
@@ -117,9 +121,12 @@ func (s *TaskService) FetchTask(ctx context.Context, id string) (TaskResponse, e
 	return s.response(ctx, t)
 }
 func (s *TaskService) response(ctx context.Context, t domain.TaskEntity) (TaskResponse, error) {
-	out := TaskResponse{ID: t.ID, ProjectID: t.ProjectID, Command: t.Command, Status: t.Status, CreatedAt: t.CreatedAt, UpdatedAt: t.UpdatedAt, DiscordThreadID: t.DiscordThreadID, Stages: []StageResponse{}, PendingApprovals: []PendingApprovalResponse{}}
+	out := TaskResponse{ID: t.ID, ProjectID: t.ProjectID, Command: t.Command, Status: t.Status, CreatedAt: t.CreatedAt, UpdatedAt: t.UpdatedAt, DiscordThreadID: t.DiscordThreadID, Stages: []StageResponse{}, PendingApprovals: []PendingApprovalResponse{}, TokenBudget: t.TokenBudget}
 	stages, e := s.Store.Stages(ctx, t.ID)
 	if e != nil {
+		return out, e
+	}
+	if out.TokensUsed, e = s.Store.TokensUsed(ctx, t.ID); e != nil {
 		return out, e
 	}
 	keys := map[string]string{}
@@ -180,6 +187,15 @@ func (s *TaskService) UpdateTask(ctx context.Context, id, action string) (TaskRe
 		if e != nil {
 			return e
 		}
+		if action == "resume" {
+			used, e := tx.TokensUsed(ctx, id)
+			if e != nil {
+				return e
+			}
+			if used >= t.TokenBudget {
+				return domain.Fault(409, "BUDGET_EXCEEDED", "token budget is exhausted; increase it before resuming")
+			}
+		}
 		if action == "resume" && t.Status == "blocked" {
 			stages, e := tx.Stages(ctx, id)
 			if e != nil {
@@ -220,6 +236,28 @@ func (s *TaskService) UpdateTask(ctx context.Context, id, action string) (TaskRe
 			}
 		})
 		return nil
+	})
+	if e != nil {
+		return TaskResponse{}, e
+	}
+	return s.FetchTask(ctx, id)
+}
+
+// SetBudget replaces the Task's token budget. It never resumes the Task by itself.
+func (s *TaskService) SetBudget(ctx context.Context, id string, r BudgetRequest) (TaskResponse, error) {
+	if r.TokenBudget < 1 {
+		return TaskResponse{}, domain.Fault(400, "BAD_REQUEST", "token_budget must be positive")
+	}
+	e := s.Store.WithTx(ctx, func(tx *store.Tx) error {
+		t, e := tx.LockTask(ctx, id)
+		if e != nil {
+			return e
+		}
+		if domain.Terminal(t.Status) {
+			return domain.Fault(409, "INVALID_TRANSITION", "cannot change the budget of a "+t.Status+" task")
+		}
+		_, e = tx.Q.UpdateTaskBudget(ctx, sqlc.UpdateTaskBudgetParams{ID: id, TokenBudget: r.TokenBudget, Version: t.Version})
+		return e
 	})
 	if e != nil {
 		return TaskResponse{}, e

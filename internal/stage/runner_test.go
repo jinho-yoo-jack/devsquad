@@ -2,6 +2,7 @@ package stage_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/jinho-yoo-jack/devsquad/internal/agentdef"
@@ -24,6 +25,40 @@ func (m *observedModel) Chat(ctx context.Context, req llm.ChatRequest) (llm.Chat
 	}
 	m.calls++
 	return (fake.LLM{}).Chat(ctx, req)
+}
+
+type budgetAfter struct{ allowed, checks int }
+
+func (b *budgetAfter) Check(context.Context, string) error {
+	b.checks++
+	if b.checks > b.allowed {
+		return llm.ErrBudgetExceeded
+	}
+	return nil
+}
+
+// 19-Go-통합-서비스-설계 §8.4: the budget is checked before each model call.
+func TestBudgetCheckedBeforeEveryModelCall(t *testing.T) {
+	latest := "agent.thinking"
+	model := &observedModel{t: t, latest: &latest}
+	budget := &budgetAfter{allowed: 1}
+	runner := stage.AgentRunner{Registry: llm.Registry{ForceFake: true, Fake: model}, Budget: budget}
+	in := stage.Input{
+		TaskID: "t", Command: "budget", Mode: "execute",
+		Stage: pipeline.StageSpec{ID: "build", Agent: "writer"},
+		Definition: agentdef.Definition{
+			Workspace: t.TempDir(),
+			Pipeline:  pipeline.Pipeline{Policy: pipeline.Policy{MaxIterations: 5}},
+			Agents:    map[string]agentdef.AgentSpec{"writer": {Name: "writer", ToolProfile: "docs-writer", WritePaths: []string{"docs/**"}}},
+		},
+		Emit: func(context.Context, string, any) error { return nil },
+	}
+	if _, err := runner.Run(context.Background(), in); !errors.Is(err, llm.ErrBudgetExceeded) {
+		t.Fatalf("err=%v", err)
+	}
+	if budget.checks != 2 || model.calls != 1 {
+		t.Fatalf("checks=%d calls=%d", budget.checks, model.calls)
+	}
 }
 
 func TestActivityEmittedBeforeEveryModelCall(t *testing.T) {

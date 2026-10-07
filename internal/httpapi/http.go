@@ -28,6 +28,10 @@ type CreateTask struct {
 	User string `header:"X-User" default:"local-user"`
 	Body app.CreateTaskRequest
 }
+type SetBudget struct {
+	ID   string `path:"id" format:"uuid"`
+	Body app.BudgetRequest
+}
 type Decide struct {
 	ID   string `path:"id" format:"uuid"`
 	User string `header:"X-User" default:"local-user"`
@@ -136,6 +140,9 @@ func (c TaskController) Register(api huma.API) {
 			return c.Service.UpdateTask(ctx, in.ID, action)
 		})
 	}
+	register(api, "tasks-budget", "POST", "/api/v1/tasks/{id}/budget", 200, func(ctx context.Context, in *SetBudget) (app.TaskResponse, error) {
+		return c.Service.SetBudget(ctx, in.ID, in.Body)
+	})
 	register(api, "tasks-events", "GET", "/api/v1/tasks/{id}/events", 200, func(ctx context.Context, in *EventsQuery) (app.EventPage, error) {
 		after := in.After
 		if after == 0 {

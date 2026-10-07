@@ -4,6 +4,8 @@ import Link from "next/link";
 import type { Task } from "@/lib/api/schemas";
 import { relativeTime, stageStatusMeta } from "@/lib/domain/status";
 import { StatusBadge } from "@/components/common/StatusBadge";
+import { TokenMeter } from "@/components/common/TokenMeter";
+import { budgetUsage } from "@/lib/domain/budget";
 
 /** 12-디자인 §3.1 — 행 목록. 승인 대기 행은 왼쪽 테두리 강조. */
 export function TaskRow({ task }: { task: Task }) {
@@ -30,9 +32,12 @@ export function TaskRow({ task }: { task: Task }) {
             </span>
           ))}
         </div>
-        <span>
-          {task.last_event ? `${task.last_event.type} · ` : ""}{relativeTime(task.updated_at)}
-        </span>
+        <div className="flex items-center gap-3">
+          <TokenMeter used={budgetUsage(task).used} budget={budgetUsage(task).budget} compact />
+          <span>
+            {task.last_event ? `${task.last_event.type} · ` : ""}{relativeTime(task.updated_at)}
+          </span>
+        </div>
       </div>
     </Link>
   );

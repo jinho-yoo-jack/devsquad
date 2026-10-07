@@ -36,10 +36,11 @@ tags: [api, rest, websocket, redis-stream, discord, openapi]
 
 | 메서드 | 경로 | 설명 |
 |---|---|---|
-| GET | `/tasks?project_id=&status=` | 목록. `stages[]`, `pending_approvals`, `last_event` 포함 |
-| POST | `/tasks` | `{project_id, command, options?}` → 201 Task 상세. options는 호환용이며 예산 정책은 후속 |
+| GET | `/tasks?project_id=&status=` | 목록. `stages[]`, `pending_approvals`, `last_event`, `token_budget`, `tokens_used` 포함. `status`는 반복(`status=a&status=b`) 또는 쉼표 목록 |
+| POST | `/tasks` | `{project_id, command, options?}` → 201 Task 상세. 예산은 `policy.token_budget`, 없으면 `project.token_budget`을 Task에 고정. options는 호환용 |
 | GET | `/tasks/{id}` | 상세 (아래 스키마) |
-| POST | `/tasks/{id}/pause` · `/resume` · `/cancel` | 상태 전이. 불가한 전이는 409 |
+| POST | `/tasks/{id}/pause` · `/resume` · `/cancel` | 상태 전이. 불가한 전이는 409. 사용량이 예산 이상이면 resume은 409 `BUDGET_EXCEEDED` |
+| POST | `/tasks/{id}/budget` | `{token_budget}` (양수) → Task 상세. 예산을 바꿀 뿐 재개하지 않는다. 종료된 Task는 409 |
 | GET | `/tasks/{id}/events?after_seq=&limit=` | 이벤트 replay (seq 오름차순, 기본 500) |
 | GET | `/tasks/{id}/approvals?status=` | 승인 목록 |
 | GET | `/tasks/{id}/deliverables` | 후속: 산출물 목록 |
@@ -62,9 +63,13 @@ tags: [api, rest, websocket, redis-stream, discord, openapi]
     { "key": "pr",       "role": "publisher","status": "pending", "depends_on": ["review"], "retry_count": 0 }
   ],
   "pending_approvals": [ { "id": "…", "kind": "deliverable", "stage_key": "design", "title": "designer deliverable v1", "requested_at": "…" } ],
-  "last_event": { "seq": 412, "type": "approval.requested", "ts": "…" }
+  "last_event": { "seq": 412, "type": "approval.requested", "ts": "…" },
+  "token_budget": 2000000,
+  "tokens_used": 183402
 }
 ```
+
+`tokens_used`는 `usage` 이벤트의 입력·출력·캐시 읽기·캐시 쓰기 토큰 합계다. 각 모델 호출 직전에 사용량이 예산 이상이면 Task를 `paused`로 바꾸고 `run.paused{reason:"budget"}`을 남긴다. 실행 중이던 단계는 실패가 아니라 중단으로 남고 재개 시 다시 실행된다. 종료된 Task의 승인은 `status=pending` 조회와 `pending_approvals`에 나오지 않는다.
 
 ### Approvals
 
@@ -126,7 +131,7 @@ tags: [api, rest, websocket, redis-stream, discord, openapi]
 | type | payload 필드 | 발행 주체 |
 |---|---|---|
 | `run.started` | `{stages, levels}` | orchestrator / stage |
-| `run.paused` | `{reason: "user" \| "budget"}` | app (예산 강제는 후속) |
+| `run.paused` | `{reason: "user" \| "budget", tokens_used?, token_budget?}` | app |
 | `run.resumed` | `{}` | orchestrator / stage |
 | `run.completed` | `{pr_urls?: []}` | orchestrator / stage |
 | `run.failed` | `{error, node?}` | orchestrator / stage |

@@ -73,7 +73,8 @@ func run() error {
 	db := store.New(pool)
 	bus := event.NewBus()
 	emitter := &event.Emitter{Bus: bus}
-	engine := orchestrator.New(ctx, db, emitter, &stage.AgentRunner{Registry: registry, TestTimeout: cfg.TestTimeout}, &workspace.Manager{})
+	budgets := &app.BudgetService{Store: db, Emitter: emitter}
+	engine := orchestrator.New(ctx, db, emitter, &stage.AgentRunner{Registry: registry, Budget: budgets, TestTimeout: cfg.TestTimeout}, &workspace.Manager{})
 	defer engine.Close()
 	engine.WorkspaceRoot = cfg.WorkspaceRoot
 	hub := ws.New(db, bus)

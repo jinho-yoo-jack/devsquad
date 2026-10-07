@@ -35,6 +35,8 @@ export const Task = z.object({
   stages: z.array(Stage).default([]),
   pending_approvals: z.array(PendingApproval).default([]),
   last_event: z.object({ seq: z.number(), type: z.string(), ts: z.string() }).nullable().optional(),
+  token_budget: z.number().optional(),
+  tokens_used: z.number().optional(),
 });
 export type Task = z.infer<typeof Task>;
 
