@@ -1,10 +1,12 @@
 package store
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -114,6 +116,20 @@ func (r Reader) Approval(ctx context.Context, id string) (domain.ApprovalEntity,
 func (r Reader) Approvals(ctx context.Context, task, status *string) ([]domain.ApprovalEntity, error) {
 	b, e := r.Q.ListApprovals(ctx, sqlc.ListApprovalsParams{TaskID: task, Status: status})
 	return decodeList[domain.ApprovalEntity](b, e)
+}
+
+// Completion is the run.completed payload: pull requests opened for the Task, in order.
+func (r Reader) Completion(ctx context.Context, id string) (map[string]any, error) {
+	rows, e := r.Q.PullRequestURLs(ctx, id)
+	if e != nil || len(rows) == 0 {
+		return map[string]any{}, e
+	}
+	slices.SortFunc(rows, func(a, b sqlc.PullRequestURLsRow) int { return cmp.Compare(a.Seq, b.Seq) })
+	urls := []string{}
+	for _, r := range rows {
+		urls = append(urls, r.Url)
+	}
+	return map[string]any{"pr_urls": urls}, nil
 }
 func (r Reader) TokensUsed(ctx context.Context, id string) (int64, error) {
 	return r.Q.TaskTokensUsed(ctx, id)

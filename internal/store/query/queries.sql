@@ -46,5 +46,7 @@ select id from deliverable where stage_id=$1 order by created_at desc,id desc li
 insert into task_event(event_id,task_id,seq,stage_key,agent,type,payload,ts) values($1,$2,$3,$4,$5,$6,$7,$8);
 -- name: CreateUsage :exec
 insert into usage_record(task_id,stage_key,agent,model,input_tokens,output_tokens,cache_read_tokens,cache_write_tokens,ts) values($1,$2,$3,$4,$5,$6,$7,$8,$9);
+-- name: PullRequestURLs :many
+select distinct on (payload->>'url') (payload->>'url')::text as url, seq from task_event where task_id=$1 and type='pr.opened' order by payload->>'url', seq;
 -- name: ListEvents :many
 select (to_jsonb(e)-'id')::jsonb as event from task_event e where task_id=$1 and seq>$2 order by seq limit $3::integer;

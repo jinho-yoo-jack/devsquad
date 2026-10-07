@@ -17,6 +17,7 @@ import (
 	"github.com/jinho-yoo-jack/devsquad/internal/event"
 	"github.com/jinho-yoo-jack/devsquad/internal/llm"
 	"github.com/jinho-yoo-jack/devsquad/internal/pipeline"
+	"github.com/jinho-yoo-jack/devsquad/internal/scm"
 	"github.com/jinho-yoo-jack/devsquad/internal/stage"
 	"github.com/jinho-yoo-jack/devsquad/internal/store"
 	"github.com/jinho-yoo-jack/devsquad/internal/store/sqlc"
@@ -35,6 +36,7 @@ type Orchestrator struct {
 	Runner        stage.Runner
 	Workspace     *workspace.Manager
 	WorkspaceRoot string
+	SCM           scm.Publisher
 	ctx           context.Context
 	cancel        context.CancelFunc
 	mu            sync.Mutex
@@ -192,11 +194,20 @@ func (o *Orchestrator) run(ctx context.Context, r *taskRun, t domain.TaskEntity,
 	if in.Mode == "execute" {
 		err = o.Workspace.Reset(ctx, t.Workspace, in.Definition.Agents[s.Role].WritePaths)
 	}
-	if err == nil {
+	if err == nil && in.Definition.Agents[s.Role].ToolProfile == "publisher" {
+		result, err = o.publish(ctx, t, in)
+	} else if err == nil {
 		result, err = o.Runner.Run(ctx, in)
 	}
 	if err == nil {
 		err = o.commit(ctx, t.ID, s, in, result)
+	}
+	var blocked *publishError
+	if errors.As(err, &blocked) && ctx.Err() == nil {
+		if e := o.block(ctx, t.ID, s, err); e != nil && !errors.Is(e, store.ErrStale) {
+			slog.Error("[Orchestrator] Publish block commit failed", "task_id", t.ID, "error", e)
+		}
+		return
 	}
 	// A budget stop leaves the stage claimed; resume re-runs it like crash recovery.
 	if err != nil && ctx.Err() == nil && !errors.Is(err, store.ErrStale) && !errors.Is(err, llm.ErrBudgetExceeded) {
@@ -363,7 +374,11 @@ func (o *Orchestrator) deriveTx(ctx context.Context, tx *store.Tx, t *domain.Tas
 		return e
 	}
 	if to == "completed" {
-		return o.Emitter.Emit(ctx, tx, t.ID, "", "", "run.completed", struct{}{})
+		payload, e := tx.Completion(ctx, t.ID)
+		if e != nil {
+			return e
+		}
+		return o.Emitter.Emit(ctx, tx, t.ID, "", "", "run.completed", payload)
 	}
 	return nil
 }

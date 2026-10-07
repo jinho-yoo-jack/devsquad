@@ -27,6 +27,7 @@ import (
 	"github.com/jinho-yoo-jack/devsquad/internal/llm/openai"
 	"github.com/jinho-yoo-jack/devsquad/internal/notify"
 	"github.com/jinho-yoo-jack/devsquad/internal/orchestrator"
+	"github.com/jinho-yoo-jack/devsquad/internal/scm"
 	"github.com/jinho-yoo-jack/devsquad/internal/stage"
 	"github.com/jinho-yoo-jack/devsquad/internal/store"
 	"github.com/jinho-yoo-jack/devsquad/internal/workspace"
@@ -82,6 +83,10 @@ func run() error {
 	defer hub.Close()
 	projects := &app.ProjectService{Store: db}
 	tasks := &app.TaskService{Store: db, Emitter: emitter, Coordinator: engine, Registry: registry, WorkspaceRoot: cfg.WorkspaceRoot}
+	if cfg.GitHubToken != "" {
+		github := &scm.GitHub{Token: cfg.GitHubToken, APIURL: cfg.GitHubAPIURL, GitURL: cfg.GitHubURL}
+		tasks.SCM, engine.SCM = github, github
+	}
 	approvals := &app.ApprovalService{Store: db, Emitter: emitter, Coordinator: engine}
 	failures := prometheus.NewCounter(prometheus.CounterOpts{Name: "devsquad_notifier_failures_total", Help: "Notification failures and subscriber overflows."})
 	prometheus.MustRegister(failures)

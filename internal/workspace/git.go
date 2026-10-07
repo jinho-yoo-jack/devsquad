@@ -3,6 +3,7 @@ package workspace
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -22,18 +23,36 @@ import (
 // still write their disjoint paths concurrently.
 type Manager struct{ mu sync.Mutex }
 
+// baseRef marks the commit a workspace started from; role branches build on it.
+const baseRef = "refs/devsquad/base"
+
+var ErrNoRemote = errors.New("workspace has no remote repository")
+
 func git(ctx context.Context, dir string, args ...string) (string, error) {
+	return gitEnv(ctx, dir, nil, "", args...)
+}
+func gitEnv(ctx context.Context, dir string, env []string, stdin string, args ...string) (string, error) {
 	c := exec.CommandContext(ctx, "git", append([]string{"-c", "user.name=DevSquad", "-c", "user.email=devsquad@localhost", "-c", "core.hooksPath=/dev/null", "-c", "commit.gpgsign=false"}, args...)...)
 	c.Dir = dir
-	c.Env = append(os.Environ(), "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null", "GIT_LITERAL_PATHSPECS=1", "GIT_TERMINAL_PROMPT=0")
+	c.Env = append(append(os.Environ(), "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null", "GIT_LITERAL_PATHSPECS=1", "GIT_TERMINAL_PROMPT=0"), env...)
+	c.Stdin = strings.NewReader(stdin)
 	b, e := c.CombinedOutput()
 	if e != nil {
 		return "", fmt.Errorf("workspace git %s: %w: %s", args[0], e, strings.TrimSpace(string(b)))
 	}
-	return string(b), nil
+	return strings.TrimSuffix(string(b), "\n"), nil
+}
+
+// auth passes the HTTP header through the environment so the token is neither
+// stored in .git/config nor visible in the process arguments.
+func auth(header string) []string {
+	if header == "" {
+		return nil
+	}
+	return []string{"GIT_CONFIG_COUNT=1", "GIT_CONFIG_KEY_0=http.extraHeader", "GIT_CONFIG_VALUE_0=" + header}
 }
 func initGit(ctx context.Context, dir string) error {
-	for _, args := range [][]string{{"init", "--quiet"}, {"add", "--force", "--", "."}, {"commit", "--quiet", "--allow-empty", "-m", "Workspace baseline"}} {
+	for _, args := range [][]string{{"init", "--quiet"}, {"add", "--force", "--", "."}, {"commit", "--quiet", "--allow-empty", "-m", "Workspace baseline"}, {"update-ref", baseRef, "HEAD"}} {
 		if _, e := git(ctx, dir, args...); e != nil {
 			return e
 		}
@@ -160,6 +179,82 @@ func (m *Manager) Accept(ctx context.Context, dir, key string, patterns []string
 		return e
 	}
 	_, e = git(ctx, dir, "update-ref", ref, "HEAD")
+	return e
+}
+
+// BranchCommit builds a commit on the workspace base holding only the changes
+// from base to source inside patterns (all changes when patterns is nil). It
+// reuses the source commit's dates, so the same input yields the same commit and
+// a repeated push is a no-op.
+func (m *Manager) BranchCommit(ctx context.Context, dir, source string, patterns []string, message string) (string, bool, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	diff, e := git(ctx, dir, "diff", "--name-only", "-z", "--no-renames", baseRef, source)
+	if e != nil {
+		return "", false, e
+	}
+	names := []string{}
+	for _, p := range strings.Split(diff, "\x00") {
+		if p != "" && (patterns == nil || owned(p, patterns)) {
+			names = append(names, p)
+		}
+	}
+	if len(names) == 0 {
+		return "", false, nil
+	}
+	listed, e := git(ctx, dir, append([]string{"ls-tree", "-z", source, "--"}, names...)...)
+	if e != nil {
+		return "", false, e
+	}
+	entries := map[string]string{}
+	for _, line := range strings.Split(listed, "\x00") {
+		if meta, path, ok := strings.Cut(line, "\t"); ok {
+			entries[path] = meta
+		}
+	}
+	// A zero mode removes the path from the index.
+	info := strings.Builder{}
+	for _, p := range names {
+		if meta, ok := entries[p]; ok {
+			f := strings.Fields(meta)
+			fmt.Fprintf(&info, "%s %s\t%s\n", f[0], f[2], p)
+		} else {
+			fmt.Fprintf(&info, "0 0000000000000000000000000000000000000000\t%s\n", p)
+		}
+	}
+	index, e := os.CreateTemp("", "devsquad-index-")
+	if e != nil {
+		return "", false, e
+	}
+	index.Close()
+	defer os.Remove(index.Name())
+	env := []string{"GIT_INDEX_FILE=" + index.Name()}
+	if _, e = gitEnv(ctx, dir, env, "", "read-tree", baseRef); e != nil {
+		return "", false, e
+	}
+	if _, e = gitEnv(ctx, dir, env, info.String(), "update-index", "--index-info"); e != nil {
+		return "", false, e
+	}
+	tree, e := gitEnv(ctx, dir, env, "", "write-tree")
+	if e != nil {
+		return "", false, e
+	}
+	date, e := git(ctx, dir, "log", "-1", "--format=%cI", source)
+	if e != nil {
+		return "", false, e
+	}
+	sha, e := gitEnv(ctx, dir, []string{"GIT_AUTHOR_DATE=" + date, "GIT_COMMITTER_DATE=" + date}, "", "commit-tree", tree, "-p", baseRef, "-m", message)
+	return sha, e == nil, e
+}
+
+// Push publishes a commit as a branch of the cloned repository.
+func (m *Manager) Push(ctx context.Context, dir, sha, branch, header string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if _, e := git(ctx, dir, "remote", "get-url", "origin"); e != nil {
+		return ErrNoRemote
+	}
+	_, e := gitEnv(ctx, dir, auth(header), "", "push", "--quiet", "--force", "origin", sha+":refs/heads/"+branch)
 	return e
 }
 

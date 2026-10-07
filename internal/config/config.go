@@ -20,6 +20,10 @@ type Config struct {
 	AdminPassword    string        `env:"DEVSQUAD_ADMIN_PASSWORD"`
 	JWTSecret        string        `env:"DEVSQUAD_JWT_SECRET"`
 	JWTTTL           time.Duration `env:"DEVSQUAD_JWT_TTL" envDefault:"720h"`
+	// Without a token only local_path projects run and pull requests are skipped.
+	GitHubToken  string `env:"DEVSQUAD_GITHUB_TOKEN"`
+	GitHubAPIURL string `env:"DEVSQUAD_GITHUB_API_URL" envDefault:"https://api.github.com"`
+	GitHubURL    string `env:"DEVSQUAD_GITHUB_URL" envDefault:"https://github.com"`
 }
 
 func Load() (Config, error) {
