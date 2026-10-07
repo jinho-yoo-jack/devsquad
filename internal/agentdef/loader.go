@@ -87,6 +87,9 @@ func LoadDefinition(workspace, contextPath string) (Definition, error) {
 		}
 		switch a.ToolProfile {
 		case "docs-writer", "code-writer":
+			if len(a.WritePaths) == 0 && a.ToolProfile == "docs-writer" {
+				a.WritePaths = []string{"docs/**"}
+			}
 			if len(a.WritePaths) == 0 {
 				return out, fmt.Errorf("%s requires write_paths", a.Name)
 			}

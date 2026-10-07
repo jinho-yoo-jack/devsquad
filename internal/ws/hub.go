@@ -39,10 +39,13 @@ type message struct {
 	FromSeq int64   `json:"from_seq"`
 }
 type reply struct {
+	Op   string `json:"op"`
+	Code string `json:"code,omitempty"`
+}
+type subscribed struct {
 	Op       string `json:"op"`
 	TaskID   string `json:"task_id,omitempty"`
-	Replayed int    `json:"replayed,omitempty"`
-	Code     string `json:"code,omitempty"`
+	Replayed int    `json:"replayed"`
 }
 
 func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -125,7 +128,7 @@ func (h *Hub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					e = send(reply{Op: "error", Code: "BAD_REQUEST"})
 					break
 				}
-				ack := reply{Op: "subscribed"}
+				ack := subscribed{Op: "subscribed"}
 				if m.TaskID == nil {
 					summary = true
 				} else {

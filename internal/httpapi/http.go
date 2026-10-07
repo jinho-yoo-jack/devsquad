@@ -36,7 +36,7 @@ type Decide struct {
 type TasksQuery struct {
 	Project       string   `query:"project_id" format:"uuid"`
 	LegacyProject string   `query:"projectId" format:"uuid"`
-	Status        []string `query:"status"`
+	Status        []string `query:"status,explode"`
 }
 type ApprovalQuery struct {
 	Status string `query:"status" default:"pending"`
@@ -120,7 +120,12 @@ func (c TaskController) Register(api huma.API) {
 		if p != "" {
 			filter = &p
 		}
-		return c.Service.FetchTasks(ctx, filter, in.Status)
+		// The web client repeats status; other callers may send a comma-separated list.
+		var statuses []string
+		for _, v := range in.Status {
+			statuses = append(statuses, strings.Split(v, ",")...)
+		}
+		return c.Service.FetchTasks(ctx, filter, statuses)
 	})
 	register(api, "tasks-get", "GET", "/api/v1/tasks/{id}", 200, func(ctx context.Context, in *ID) (app.TaskResponse, error) { return c.Service.FetchTask(ctx, in.ID) })
 	register(api, "tasks-create", "POST", "/api/v1/tasks", 201, func(ctx context.Context, in *CreateTask) (app.TaskResponse, error) {

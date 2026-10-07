@@ -294,7 +294,7 @@ func (q *Queries) LatestDeliverableID(ctx context.Context, stageID string) (stri
 }
 
 const listApprovals = `-- name: ListApprovals :many
-select to_jsonb(a) from approval a where ($1::text is null or task_id::text=$1::text) and ($2::text is null or status=$2::text) order by requested_at,id
+select to_jsonb(a) from approval a where ($1::text is null or task_id::text=$1::text) and ($2::text is null or status=$2::text) and ($2::text is distinct from 'pending' or exists(select 1 from task t where t.id=a.task_id and t.status not in ('completed','failed','cancelled'))) order by requested_at,id
 `
 
 type ListApprovalsParams struct {
@@ -302,6 +302,7 @@ type ListApprovalsParams struct {
 	Status *string
 }
 
+// A terminal Task's approvals can no longer be decided, so a pending filter skips them.
 func (q *Queries) ListApprovals(ctx context.Context, arg ListApprovalsParams) ([][]byte, error) {
 	rows, err := q.db.Query(ctx, listApprovals, arg.TaskID, arg.Status)
 	if err != nil {

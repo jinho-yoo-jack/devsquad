@@ -25,7 +25,8 @@ update stage set status=$3,plan=$4,plan_retry_no=$5,deliverable_ref=$6,deliverab
 -- name: GetApproval :one
 select to_jsonb(a) from approval a where id=$1;
 -- name: ListApprovals :many
-select to_jsonb(a) from approval a where (sqlc.narg(task_id)::text is null or task_id::text=sqlc.narg(task_id)::text) and (sqlc.narg(status)::text is null or status=sqlc.narg(status)::text) order by requested_at,id;
+-- A terminal Task's approvals can no longer be decided, so a pending filter skips them.
+select to_jsonb(a) from approval a where (sqlc.narg(task_id)::text is null or task_id::text=sqlc.narg(task_id)::text) and (sqlc.narg(status)::text is null or status=sqlc.narg(status)::text) and (sqlc.narg(status)::text is distinct from 'pending' or exists(select 1 from task t where t.id=a.task_id and t.status not in ('completed','failed','cancelled'))) order by requested_at,id;
 -- name: CreateApproval :exec
 insert into approval(id,task_id,stage_id,kind,retry_no,status,title,content) values($1,$2,$3,$4,$5,'pending',$6,$7);
 -- name: DecideApproval :execrows
