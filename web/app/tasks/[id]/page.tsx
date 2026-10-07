@@ -7,6 +7,7 @@ import { useInitialEvents, useTask, useTaskApprovals, useTaskAction } from "@/li
 import { useTaskSocket } from "@/lib/ws/useTaskSocket";
 import { useEventStore } from "@/lib/stores/eventStore";
 import { useConnectionStore } from "@/lib/stores/connectionStore";
+import { splitApprovals } from "@/lib/domain/approvals";
 import { PipelineBar } from "@/components/pipeline/PipelineBar";
 import { AgentActivityPanel } from "@/components/agents/AgentActivityPanel";
 import { EventTimeline } from "@/components/timeline/EventTimeline";
@@ -29,8 +30,7 @@ export default function TaskDetailPage() {
   const [stageFilter, setStageFilter] = useState<string | null>(null);
   const selectStage = (key: string) => setStageFilter((cur) => cur === key ? null : key);
 
-  const pending = useMemo(() => approvals.data?.filter((a) => a.status === "pending") ?? [], [approvals.data]);
-  const history = useMemo(() => approvals.data?.filter((a) => a.status !== "pending").slice().reverse() ?? [], [approvals.data]);
+  const { pending, history } = useMemo(() => splitApprovals(approvals.data ?? [], task.data?.status), [approvals.data, task.data?.status]);
   const roleByStageId = useMemo(() => new Map<string, string>(), []);
 
   if (task.isPending) return <p className="text-sm" style={{ color: "var(--text-2)" }}>불러오는 중…</p>;
@@ -76,7 +76,7 @@ export default function TaskDetailPage() {
           {history.length > 0 && (
             <details className="rounded-lg border" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
               <summary className="cursor-pointer px-3 py-2 text-sm">승인 이력 {history.length}건</summary>
-              <div className="space-y-2 p-3">{history.map((a) => <ApprovalPanel key={a.id} approval={a} taskId={id} />)}</div>
+              <div className="space-y-2 p-3">{history.map((a) => <ApprovalPanel key={a.id} approval={a} taskId={id} readOnly />)}</div>
             </details>
           )}
         </aside>

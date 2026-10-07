@@ -169,17 +169,12 @@ func (s *TaskService) FetchTasks(ctx context.Context, project *string, statuses 
 	return out, nil
 }
 func (s *TaskService) UpdateTask(ctx context.Context, id, action string) (TaskResponse, error) {
-	original, e := s.Store.Task(ctx, id)
-	if e != nil {
-		return TaskResponse{}, e
-	}
-	e = s.Store.WithTx(ctx, func(tx *store.Tx) error {
+	// The row lock serializes this with the orchestrator; the transition is
+	// validated against the locked status, not an earlier read.
+	e := s.Store.WithTx(ctx, func(tx *store.Tx) error {
 		t, e := tx.LockTask(ctx, id)
 		if e != nil {
 			return e
-		}
-		if t.Version != original.Version {
-			return domain.Fault(409, "INVALID_TRANSITION", "task version changed")
 		}
 		to, e := domain.TaskTransition(t.Status, action)
 		if e != nil {

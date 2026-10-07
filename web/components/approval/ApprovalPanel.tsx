@@ -12,7 +12,7 @@ import { clockTime, roleColor } from "@/lib/domain/status";
  * 12-디자인 §3.3 승인 패널 — 원문 그대로 보여 주고 approve / reject(피드백 필수) / edit(수정 후 승인).
  * 409 APPROVAL_ALREADY_DECIDED 는 "다른 채널에서 이미 처리됨" 으로 안내하고 쿼리를 무효화한다.
  */
-export function ApprovalPanel({ approval, taskId, stageRole }: { approval: Approval; taskId: string; stageRole?: string }) {
+export function ApprovalPanel({ approval, taskId, stageRole, readOnly = false }: { approval: Approval; taskId: string; stageRole?: string; readOnly?: boolean }) {
   const [mode, setMode] = useState<"view" | "reject" | "edit">("view");
   const [feedback, setFeedback] = useState("");
   const [edited, setEdited] = useState(approval.content ?? "");
@@ -29,7 +29,7 @@ export function ApprovalPanel({ approval, taskId, stageRole }: { approval: Appro
     });
 
   const busy = decide.isPending;
-  const isPending = approval.status === "pending";
+  const isPending = approval.status === "pending" && !readOnly;
 
   return (
     <section className="rounded-lg border" style={{ borderColor: isPending ? "var(--status-waiting)" : "var(--border)", background: "var(--surface-1)" }}
@@ -76,6 +76,10 @@ export function ApprovalPanel({ approval, taskId, stageRole }: { approval: Appro
               <Button variant="ghost" onClick={() => { setMode("view"); setEdited(approval.content ?? ""); }}>취소</Button>
             </>)}
           </div>
+        </footer>
+      ) : approval.status === "pending" ? (
+        <footer className="border-t px-3 py-2 text-xs" style={{ borderColor: "var(--border)", color: "var(--text-2)" }}>
+          ⏹ 결정되지 않음 · Task 종료
         </footer>
       ) : (
         <footer className="border-t px-3 py-2 text-xs" style={{ borderColor: "var(--border)", color: "var(--text-2)" }}>

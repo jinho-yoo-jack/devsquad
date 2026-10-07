@@ -21,8 +21,10 @@ func SafeRelative(name string) bool {
 	}
 	return true
 }
+
+// Case-insensitive file systems (macOS, Windows) open ".ENV" as ".env".
 func Protected(name string) bool {
-	for _, part := range strings.Split(filepath.ToSlash(name), "/") {
+	for _, part := range strings.Split(strings.ToLower(filepath.ToSlash(name)), "/") {
 		switch part {
 		case ".git", ".ssh", ".aws", "secrets", "node_modules", ".venv", ".devsquad-runtime":
 			return true
