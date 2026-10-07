@@ -454,6 +454,35 @@ func (q *Queries) NextSequence(ctx context.Context, id string) (int64, error) {
 	return event_seq, err
 }
 
+const pullRequestURLs = `-- name: PullRequestURLs :many
+select distinct on (payload->>'url') (payload->>'url')::text as url, seq from task_event where task_id=$1 and type='pr.opened' order by payload->>'url', seq
+`
+
+type PullRequestURLsRow struct {
+	Url string
+	Seq int64
+}
+
+func (q *Queries) PullRequestURLs(ctx context.Context, taskID string) ([]PullRequestURLsRow, error) {
+	rows, err := q.db.Query(ctx, pullRequestURLs, taskID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PullRequestURLsRow{}
+	for rows.Next() {
+		var i PullRequestURLsRow
+		if err := rows.Scan(&i.Url, &i.Seq); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const taskTokensUsed = `-- name: TaskTokensUsed :one
 select coalesce(sum(input_tokens+output_tokens+cache_read_tokens+cache_write_tokens),0)::bigint from usage_record where task_id=$1
 `

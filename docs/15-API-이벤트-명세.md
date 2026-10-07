@@ -35,7 +35,7 @@ tags: [api, rest, websocket, redis-stream, discord, openapi]
 | 메서드 | 경로 | 설명 |
 |---|---|---|
 | GET | `/projects` | 목록 |
-| POST | `/projects` | `{name, github_owner, github_repo, default_branch?, installation_id?, local_path?}` |
+| POST | `/projects` | `{name, github_owner, github_repo, default_branch?, installation_id?, local_path?}`. `local_path`가 없으면 Task 생성 시 `DEVSQUAD_GITHUB_TOKEN`으로 `github_owner/github_repo`의 `default_branch`를 clone한다. 토큰이 없거나 이름이 `[A-Za-z0-9_.-]`가 아니면 400 `PROJECT_INVALID` |
 | GET | `/projects/{id}` | 상세. `.devsquad` 요약은 후속 |
 | POST | `/projects/{id}/bootstrap` | 후속: `.devsquad/` 기본 템플릿을 repo에 커밋 |
 | GET | `/projects/{id}/agents/{role}/files` | 후속: `{files: [{path, content, sha}]}` |
@@ -143,12 +143,12 @@ tags: [api, rest, websocket, redis-stream, discord, openapi]
 | `run.started` | `{stages, levels}` | orchestrator / stage |
 | `run.paused` | `{reason: "user" \| "budget", tokens_used?, token_budget?}` | app |
 | `run.resumed` | `{}` | orchestrator / stage |
-| `run.completed` | `{pr_urls?: []}` | orchestrator / stage |
+| `run.completed` | `{pr_urls?: []}` (`pr.opened` URL, 처음 열린 순서) | orchestrator / stage |
 | `run.failed` | `{error, node?}` | orchestrator / stage |
 | `run.cancelled` | `{}` | app |
 | `stage.started` | `{}` | orchestrator / stage |
 | `stage.completed` | `{deliverable_id}` | orchestrator / stage |
-| `stage.blocked` | `{reason, last_feedback}` | orchestrator / stage |
+| `stage.blocked` | `{reason, last_feedback, error?}`. `reason`: `max_retries` 또는 `publish_failed`(push·PR 실패, 재개 시 다시 시도) | orchestrator / stage |
 | `agent.thinking` | `{summary, iteration?, model?}` (`summary`: plan/execute, `iteration`: 단계 실행 내 1부터 시작하는 모델 호출 회차) | orchestrator / stage |
 | `agent.tool_call` | `{call_id, tool, args_summary}` | orchestrator / stage |
 | `agent.tool_result` | `{call_id, tool, ok, summary, duration_ms}` | orchestrator / stage |
@@ -157,7 +157,7 @@ tags: [api, rest, websocket, redis-stream, discord, openapi]
 | `approval.decided` | `{approval_id, decision, decided_via, decided_by}` | app |
 | `deliverable.produced` | `{deliverable_id, kind, summary, commit_sha?}` | app / orchestrator |
 | `usage` | `{model, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens}` | orchestrator / stage |
-| `pr.opened` | `{url, number, role}` | 후속 구현 |
+| `pr.opened` | `{url, number, role, branch, created}`. `role`은 per-role 모드의 팀원, single 모드는 `all`. 기존 PR을 재사용하면 `created: false` | orchestrator (publisher 단계) |
 | `pr.review_comment` | `{url, author, body_preview}` | 후속 구현 |
 
 모든 이벤트는 `task.event_seq` 증가와 `task_event` INSERT를 같은 트랜잭션에서 처리한다. `approval.requested`와 `deliverable.produced`에는 생성 시점부터 DB id가 들어간다. 커밋 후 Bus가 WS에 전달하며 REST 재생과 같은 envelope을 사용한다. 느린 구독자는 연결을 종료하고 `from_seq`로 복구한다.
@@ -166,7 +166,7 @@ tags: [api, rest, websocket, redis-stream, discord, openapi]
 
 ## 4. 내부 실행
 
-외부 Runtime HTTP는 제공하지 않는다. Task 생성·승인·resume 커밋 후 Reconcile을 깨우며, 시작 시와 고정 지연 주기로 DB 상태를 다시 읽는다. 기존 `/runs/*`, `/internal/*`, `X-Internal-Token`은 이 구현의 계약에서 제외한다. Discord·GitHub API는 후속 범위다.
+외부 Runtime HTTP는 제공하지 않는다. Task 생성·승인·resume 커밋 후 Reconcile을 깨우며, 시작 시와 고정 지연 주기로 DB 상태를 다시 읽는다. 기존 `/runs/*`, `/internal/*`, `X-Internal-Token`은 이 구현의 계약에서 제외한다. GitHub는 REST API(PR 조회·생성·갱신)와 HTTPS git(clone·push)을 개인 액세스 토큰으로 호출한다. Discord는 후속 범위다.
 
 ## 5. Discord 명령과 인터랙션 (후속 설계)
 
@@ -219,7 +219,12 @@ policy:
   max_retries_per_approval: int  # 기본 3
   token_budget: int              # 기본 project.token_budget
   execute_max_iterations: int    # 기본 40
+  pr:
+    mode: single|per-role        # 기본 single
+    base_branch: string          # 기본 project.default_branch
 ```
+
+`agent: publisher` 단계는 서비스 내장이며 모델을 호출하지 않는다. clone한 프로젝트에서는 승인된 단계의 변경을 `devsquad/<task-id>`(single) 또는 `devsquad/<task-id>/<role>`(per-role, 단계의 `write_paths` 변경만) 브랜치로 push하고 PR을 열거나 갱신한다. PR 본문은 Task 요약, 산출물 링크, 단계별 요약, 승인 이력이다. `local_path` 프로젝트에서는 PR 본문 초안만 결과물로 남긴다.
 
 검증 실패(사이클, 없는 agent)는 Task 생성 시 400으로 반환한다.
 

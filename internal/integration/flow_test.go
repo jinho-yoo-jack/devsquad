@@ -29,6 +29,7 @@ import (
 	"github.com/jinho-yoo-jack/devsquad/internal/llm/fake"
 	"github.com/jinho-yoo-jack/devsquad/internal/orchestrator"
 	"github.com/jinho-yoo-jack/devsquad/internal/pipeline"
+	"github.com/jinho-yoo-jack/devsquad/internal/scm"
 	"github.com/jinho-yoo-jack/devsquad/internal/stage"
 	"github.com/jinho-yoo-jack/devsquad/internal/store"
 	"github.com/jinho-yoo-jack/devsquad/internal/workspace"
@@ -47,6 +48,7 @@ type harness struct {
 	server    *httptest.Server
 	source    string
 	runner    stage.Runner
+	scm       scm.Publisher
 }
 
 func database(t *testing.T) *store.Store {
@@ -126,6 +128,7 @@ func (h *harness) restart(runner stage.Runner) {
 		h.engine.Close()
 	}
 	h.engine = orchestrator.New(context.Background(), h.db, h.emitter, runner, &workspace.Manager{})
+	h.engine.SCM = h.scm
 	h.tasks.Coordinator = h.engine
 	h.approvals.Coordinator = h.engine
 }

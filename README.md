@@ -23,8 +23,20 @@ flowchart LR
 - Task 상세의 에이전트별 현재 작업·도구 결과·대기 이유 표시, 실시간 갱신과 단계별 타임라인 필터
 - Task별 토큰 예산: 모델 호출 전 검사, 초과 시 자동 일시정지(`run.paused{reason:"budget"}`), 증액 후 재개
 - 단일 사용자 로그인: 관리자 비밀번호로 장기 JWT(HttpOnly 쿠키 또는 Bearer)를 발급하고 API·WebSocket에 적용
+- GitHub PR: `local_path`가 없는 프로젝트는 GitHub에서 clone하고, 내장 `publisher` 단계가 승인된 결과를 `devsquad/<task-id>/…` 브랜치로 push한 뒤 PR을 열거나 재사용
 
-Discord, GitHub clone/push/PR 생성은 후속 범위입니다. `publisher`는 PR 초안만 작성합니다. 현재는 인스턴스 1개를 실행하며, 같은 DB 스키마에 두 번째 서비스를 띄우면 시작을 거부합니다.
+Discord는 후속 범위입니다. 현재는 인스턴스 1개를 실행하며, 같은 DB 스키마에 두 번째 서비스를 띄우면 시작을 거부합니다.
+
+### GitHub PR
+
+`DEVSQUAD_GITHUB_TOKEN`에 Contents·Pull requests 쓰기 권한이 있는 토큰을 설정하고, 프로젝트를 `local_path` 없이 `github_owner`·`github_repo`·`default_branch`로 등록합니다. Task를 만들면 기본 브랜치를 clone하며 토큰은 `.git/config`에 저장하지 않습니다. `pipeline.yaml`의 `publisher` 단계는 모델을 호출하지 않고 다음을 합니다.
+
+- `policy.pr.mode: single`(기본): 승인된 전체 변경을 `devsquad/<task-id>` 브랜치 하나와 PR 하나로
+- `policy.pr.mode: per-role`: 단계마다 소유 경로의 변경만 `devsquad/<task-id>/<role>` 브랜치와 PR로
+- PR 본문: Task 요약, 산출물 링크, 단계별 요약, 승인 이력. 같은 브랜치의 열린 PR은 갱신해 재사용
+- push·PR 실패 시 단계는 `blocked`(`stage.blocked{reason:"publish_failed"}`)가 되고, 권한을 고친 뒤 재개하면 다시 시도
+
+`local_path` 프로젝트는 지금처럼 복사해 실행하고 `publisher`는 PR 본문 초안만 남깁니다.
 
 ## 실행
 

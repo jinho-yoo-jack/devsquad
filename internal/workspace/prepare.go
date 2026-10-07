@@ -11,6 +11,53 @@ import (
 	"github.com/jinho-yoo-jack/devsquad/internal/pathguard"
 )
 
+// target validates the task directory name and returns the resolved root and destination.
+func target(root, task string) (string, string, error) {
+	if !pathguard.SafeRelative(task) || strings.Contains(task, "/") || task == "." {
+		return "", "", fmt.Errorf("invalid task_id")
+	}
+	abs, err := filepath.Abs(root)
+	if err != nil {
+		return "", "", err
+	}
+	if err = os.MkdirAll(abs, 0700); err != nil {
+		return "", "", err
+	}
+	if abs, err = filepath.EvalSymlinks(abs); err != nil {
+		return "", "", err
+	}
+	dest := filepath.Join(abs, task)
+	if _, err = os.Stat(dest); err == nil {
+		return "", "", fmt.Errorf("workspace already exists")
+	} else if !os.IsNotExist(err) {
+		return "", "", err
+	}
+	return abs, dest, nil
+}
+
+// Clone checks out branch of a remote repository with its history, so approved
+// work can be pushed back as branches of that repository.
+func Clone(ctx context.Context, root, task, remote, branch, header string) (string, error) {
+	abs, dest, err := target(root, task)
+	if err != nil {
+		return "", err
+	}
+	temp, err := os.MkdirTemp(abs, ".preparing-")
+	if err != nil {
+		return "", err
+	}
+	defer os.RemoveAll(temp)
+	if _, err = gitEnv(ctx, abs, auth(header), "", "clone", "--quiet", "--single-branch", "--branch", branch, "--", remote, temp); err != nil {
+		return "", err
+	}
+	if _, err = git(ctx, temp, "update-ref", baseRef, "HEAD"); err != nil {
+		return "", err
+	}
+	if err = os.Rename(temp, dest); err != nil {
+		return "", err
+	}
+	return dest, nil
+}
 func Prepare(ctx context.Context, root, task, source string) (string, error) {
 	if !pathguard.SafeRelative(task) || strings.Contains(task, "/") || task == "." {
 		return "", fmt.Errorf("invalid task_id")

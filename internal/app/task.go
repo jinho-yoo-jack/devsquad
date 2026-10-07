@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
+	"regexp"
 	"strings"
 
 	"github.com/google/uuid"
@@ -13,6 +15,7 @@ import (
 	"github.com/jinho-yoo-jack/devsquad/internal/domain"
 	"github.com/jinho-yoo-jack/devsquad/internal/event"
 	"github.com/jinho-yoo-jack/devsquad/internal/llm"
+	"github.com/jinho-yoo-jack/devsquad/internal/scm"
 	"github.com/jinho-yoo-jack/devsquad/internal/stage"
 	"github.com/jinho-yoo-jack/devsquad/internal/store"
 	"github.com/jinho-yoo-jack/devsquad/internal/store/sqlc"
@@ -30,6 +33,7 @@ type TaskService struct {
 	Coordinator   Coordinator
 	Registry      llm.Registry
 	WorkspaceRoot string
+	SCM           scm.Publisher
 }
 
 func (s *TaskService) CreateTask(ctx context.Context, r CreateTaskRequest, user string) (TaskResponse, error) {
@@ -45,7 +49,7 @@ func (s *TaskService) CreateTask(ctx context.Context, r CreateTaskRequest, user 
 		return out, e
 	}
 	id := uuid.NewString()
-	dir, e := workspace.Prepare(ctx, s.WorkspaceRoot, id, domain.Text(p.LocalPath))
+	dir, e := s.prepare(ctx, id, p)
 	if e != nil {
 		return out, domain.Fault(400, "PROJECT_INVALID", e.Error())
 	}
@@ -112,6 +116,25 @@ func (s *TaskService) CreateTask(ctx context.Context, r CreateTaskRequest, user 
 		return out, e
 	}
 	return s.FetchTask(ctx, id)
+}
+
+var repoName = regexp.MustCompile(`^[A-Za-z0-9_.-]+$`)
+
+// prepare copies a local_path project. Without one, the GitHub repository is
+// cloned so approved work can return to it as branches and pull requests.
+func (s *TaskService) prepare(ctx context.Context, id string, p ProjectEntity) (string, error) {
+	if local := domain.Text(p.LocalPath); local != "" {
+		return workspace.Prepare(ctx, s.WorkspaceRoot, id, local)
+	}
+	if s.SCM == nil {
+		return "", fmt.Errorf("project.local_path is required unless DEVSQUAD_GITHUB_TOKEN is set")
+	}
+	for _, name := range []string{p.GithubOwner, p.GithubRepo} {
+		if !repoName.MatchString(name) || strings.Trim(name, ".") == "" {
+			return "", fmt.Errorf("invalid GitHub owner or repository: %q", name)
+		}
+	}
+	return workspace.Clone(ctx, s.WorkspaceRoot, id, s.SCM.RemoteURL(p.GithubOwner, p.GithubRepo), p.DefaultBranch, s.SCM.GitHeader())
 }
 func (s *TaskService) FetchTask(ctx context.Context, id string) (TaskResponse, error) {
 	t, e := s.Store.Task(ctx, id)
@@ -206,7 +229,7 @@ func (s *TaskService) UpdateTask(ctx context.Context, id, action string) (TaskRe
 					continue
 				}
 				st.Status = "planning"
-				if domain.Text(st.BlockedReason) == "deliverable" {
+				if reason := domain.Text(st.BlockedReason); reason == "deliverable" || reason == "publish" {
 					st.Status = "executing"
 				}
 				st.BlockedReason = nil

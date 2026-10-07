@@ -11,6 +11,7 @@ import { splitApprovals } from "@/lib/domain/approvals";
 import { budgetUsage, pausedForBudget } from "@/lib/domain/budget";
 import { TokenMeter } from "@/components/common/TokenMeter";
 import { BudgetPanel } from "@/components/tasks/BudgetPanel";
+import { PullRequestList } from "@/components/tasks/PullRequestList";
 import { PipelineBar } from "@/components/pipeline/PipelineBar";
 import { AgentActivityPanel } from "@/components/agents/AgentActivityPanel";
 import { EventTimeline } from "@/components/timeline/EventTimeline";
@@ -64,6 +65,7 @@ export default function TaskDetailPage() {
         onSubmit={(budget) => setBudget.mutate(budget)} error={setBudget.isError ? setBudget.error.message : undefined} />}
 
       <PipelineBar stages={t.stages} selected={stageFilter} onSelect={selectStage} />
+      <PullRequestList events={bucket?.events ?? []} />
 
       {events.isPending && <p role="status" className="text-xs" style={{ color: "var(--text-2)" }}>활동 기록을 불러오는 중…</p>}
       {events.isError && <InlineError message="활동 기록을 불러오지 못했습니다. 최근 작업 정보가 누락될 수 있습니다." onRetry={() => events.refetch()} />}

@@ -120,7 +120,11 @@ func (s *ApprovalService) UpdateApproval(ctx context.Context, id string, r Decis
 				return e
 			}
 			if to == "completed" {
-				if e = s.Emitter.Emit(ctx, tx, t.ID, "", "", "run.completed", struct{}{}); e != nil {
+				payload, e := tx.Completion(ctx, t.ID)
+				if e != nil {
+					return e
+				}
+				if e = s.Emitter.Emit(ctx, tx, t.ID, "", "", "run.completed", payload); e != nil {
 					return e
 				}
 			}
