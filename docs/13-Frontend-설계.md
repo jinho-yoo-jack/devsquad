@@ -157,7 +157,7 @@ Control Plane이 springdoc으로 내는 OpenAPI 3 스펙을 `openapi-typescript`
 
 ## 8. 인증 (MVP)
 
-단일 사용자 전제라 Control Plane이 발급하는 장기 JWT를 쿠키에 두고, Next.js 프록시 라우트가 `Authorization` 헤더로 전달한다. Discord OAuth 로그인은 Phase 2에서 "Discord 사용자 = 웹 사용자" 매핑이 필요할 때 넣는다.
+단일 사용자 전제라 Control Plane이 발급하는 장기 JWT를 쿠키에 둔다. 구현(2026-10-07): `/login`에서 관리자 비밀번호로 로그인하면 서비스가 HttpOnly 쿠키를 발급하고, Next.js rewrites가 `/api/*`·`/ws` 요청의 쿠키를 그대로 Go 서비스에 전달한다. API가 401을 주면 `/login?next=<현재 경로>`로 이동한다. Discord OAuth 로그인은 Phase 2에서 "Discord 사용자 = 웹 사용자" 매핑이 필요할 때 넣는다.
 
 ## 9. 테스트 전략
 

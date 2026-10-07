@@ -18,7 +18,17 @@ tags: [api, rest, websocket, redis-stream, discord, openapi]
 
 ## 1. 공개 REST API (`/api/v1`)
 
-공통: snake_case JSON, 오류는 `{ "code": "TASK_NOT_FOUND", "message": "...", "details": {} }`. 현재 로컬 개발 API에는 JWT 인증을 적용하지 않는다. Task 목록은 `{items, next_cursor: null}`, 프로젝트·승인 목록은 배열이다. 실제 제공 엔드포인트와 스키마는 `/openapi.json`이 기준이다. 아래에 후속 기능을 따로 표시한다.
+공통: snake_case JSON, 오류는 `{ "code": "TASK_NOT_FOUND", "message": "...", "details": {} }`. Task 목록은 `{items, next_cursor: null}`, 프로젝트·승인 목록은 배열이다. 실제 제공 엔드포인트와 스키마는 `/openapi.json`이 기준이다. 아래에 후속 기능을 따로 표시한다.
+
+인증: `/api/v1/*`는 `/health`, `/auth/login`, `/auth/logout`을 빼고 JWT가 필요하다. 쿠키 `devsquad_token` 또는 `Authorization: Bearer <jwt>`로 보내며, 없거나 무효면 401 `UNAUTHORIZED`다. 토큰은 단일 사용자 `admin`의 HS256 장기 토큰(기본 720h)이다. Task 생성자·승인 결정자는 토큰의 사용자로 기록한다. `DEVSQUAD_AUTH_DISABLED=true`인 로컬 개발에서만 검사를 끄고 `X-User` 헤더를 쓴다.
+
+### Auth
+
+| 메서드 | 경로 | 설명 |
+|---|---|---|
+| POST | `/auth/login` | `{password}` → 200 `{user, token, expires_at}` + `Set-Cookie: devsquad_token` (HttpOnly, SameSite=Lax, `X-Forwarded-Proto: https`면 Secure). 틀리면 401 |
+| POST | `/auth/logout` | 204, 쿠키 삭제 |
+| GET | `/me` | `{user, auth_enabled}` |
 
 ### Projects
 
@@ -98,11 +108,11 @@ tags: [api, rest, websocket, redis-stream, discord, openapi]
 
 ### 기타
 
-`GET /health`는 `{status: "ok", service: "devsquad", ts}`를 반환하고 DB 연결을 점검한다. `/me`, `/integrations/status`는 후속 범위다.
+`GET /health`는 `{status: "ok", service: "devsquad", ts}`를 반환하고 DB 연결을 점검한다. `/integrations/status`는 후속 범위다.
 
 ## 2. WebSocket (`/ws`)
 
-현재 연결은 `ws://localhost:8080/ws`이며 JWT 검증은 후속이다. 클라이언트 → 서버:
+연결은 `ws://localhost:8080/ws`다. 브라우저는 같은 origin의 쿠키로, 그 밖의 클라이언트는 `?token=<jwt>`로 인증하며 실패하면 핸드셰이크가 401이다. 클라이언트 → 서버:
 
 ```json
 { "op": "subscribe",   "task_id": "…", "from_seq": 1230 }
@@ -217,6 +227,7 @@ policy:
 
 | code | HTTP | 상황 |
 |---|---|---|
+| `UNAUTHORIZED` | 401 | 토큰 없음·만료·위조, 로그인 비밀번호 불일치 |
 | `TASK_NOT_FOUND` / `APPROVAL_NOT_FOUND` | 404 | |
 | `APPROVAL_ALREADY_DECIDED` | 409 | 다른 채널에서 먼저 결정 |
 | `INVALID_TRANSITION` | 409 | 예: completed Task에 pause |
