@@ -88,6 +88,7 @@ type Task struct {
 	Pipeline        []byte
 	Workspace       *string
 	EventSeq        int64
+	TokenBudget     int64
 }
 
 type TaskEvent struct {

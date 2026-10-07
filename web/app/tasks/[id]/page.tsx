@@ -3,11 +3,14 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useMemo, useState } from "react";
-import { useInitialEvents, useTask, useTaskApprovals, useTaskAction } from "@/lib/queries/tasks";
+import { useInitialEvents, useSetBudget, useTask, useTaskApprovals, useTaskAction } from "@/lib/queries/tasks";
 import { useTaskSocket } from "@/lib/ws/useTaskSocket";
 import { useEventStore } from "@/lib/stores/eventStore";
 import { useConnectionStore } from "@/lib/stores/connectionStore";
 import { splitApprovals } from "@/lib/domain/approvals";
+import { budgetUsage, pausedForBudget } from "@/lib/domain/budget";
+import { TokenMeter } from "@/components/common/TokenMeter";
+import { BudgetPanel } from "@/components/tasks/BudgetPanel";
 import { PipelineBar } from "@/components/pipeline/PipelineBar";
 import { AgentActivityPanel } from "@/components/agents/AgentActivityPanel";
 import { EventTimeline } from "@/components/timeline/EventTimeline";
@@ -22,6 +25,7 @@ export default function TaskDetailPage() {
   const task = useTask(id);
   const approvals = useTaskApprovals(id);
   const action = useTaskAction(id);
+  const setBudget = useSetBudget(id);
   const events = useInitialEvents(id);
   useTaskSocket(id);
 
@@ -36,6 +40,7 @@ export default function TaskDetailPage() {
   if (task.isPending) return <p className="text-sm" style={{ color: "var(--text-2)" }}>불러오는 중…</p>;
   if (task.isError || !task.data) return <InlineError message="Task를 불러오지 못했습니다." onRetry={() => task.refetch()} />;
   const t = task.data;
+  const usage = budgetUsage(t);
 
   return (
     <section className="space-y-4">
@@ -46,12 +51,17 @@ export default function TaskDetailPage() {
           <StatusBadge status={t.status} />
         </div>
         <div className="flex items-center gap-2 text-xs" style={{ color: "var(--text-2)" }}>
+          <TokenMeter used={usage.used} budget={usage.budget} />
           <span title="WebSocket">{conn === "open" ? "● 실시간" : conn === "reconnecting" ? "◐ 재연결 중" : "○ 오프라인"}</span>
           {t.status === "running" && <Button variant="ghost" onClick={() => action.mutate("pause")}>⏸ 일시정지</Button>}
           {(t.status === "paused" || t.status === "blocked") && <Button variant="ghost" onClick={() => action.mutate("resume")}>▶ 재개</Button>}
           {!["completed", "failed", "cancelled"].includes(t.status) && <Button variant="ghost" onClick={() => action.mutate("cancel")}>✖ 취소</Button>}
         </div>
       </header>
+
+      {action.isError && <InlineError message={action.error.message} />}
+      {pausedForBudget(t) && <BudgetPanel used={usage.used} budget={usage.budget} busy={setBudget.isPending}
+        onSubmit={(budget) => setBudget.mutate(budget)} error={setBudget.isError ? setBudget.error.message : undefined} />}
 
       <PipelineBar stages={t.stages} selected={stageFilter} onSelect={selectStage} />
 

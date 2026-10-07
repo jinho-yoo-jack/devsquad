@@ -15,6 +15,7 @@ import (
 	"github.com/jinho-yoo-jack/devsquad/internal/agentdef"
 	"github.com/jinho-yoo-jack/devsquad/internal/domain"
 	"github.com/jinho-yoo-jack/devsquad/internal/event"
+	"github.com/jinho-yoo-jack/devsquad/internal/llm"
 	"github.com/jinho-yoo-jack/devsquad/internal/pipeline"
 	"github.com/jinho-yoo-jack/devsquad/internal/stage"
 	"github.com/jinho-yoo-jack/devsquad/internal/store"
@@ -197,7 +198,8 @@ func (o *Orchestrator) run(ctx context.Context, r *taskRun, t domain.TaskEntity,
 	if err == nil {
 		err = o.commit(ctx, t.ID, s, in, result)
 	}
-	if err != nil && ctx.Err() == nil && !errors.Is(err, store.ErrStale) {
+	// A budget stop leaves the stage claimed; resume re-runs it like crash recovery.
+	if err != nil && ctx.Err() == nil && !errors.Is(err, store.ErrStale) && !errors.Is(err, llm.ErrBudgetExceeded) {
 		if e := o.fail(ctx, t.ID, s.ID, s.Attempt, err); e != nil {
 			slog.Error("[Orchestrator] Failure commit failed", "task_id", t.ID, "error", e)
 		}

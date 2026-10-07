@@ -17,6 +17,8 @@ export const createTask = (body: { project_id: string; command: string }) => api
 
 export const taskAction = (id: string, action: "pause" | "resume" | "cancel") => api.post(`/api/v1/tasks/${id}/${action}`, undefined, Task);
 
+export const setTaskBudget = (id: string, tokenBudget: number) => api.post(`/api/v1/tasks/${id}/budget`, { token_budget: tokenBudget }, Task);
+
 export const fetchTaskApprovals = (taskId: string) => api.get(`/api/v1/tasks/${taskId}/approvals`, z.array(Approval));
 
 export const fetchApproval = (id: string) => api.get(`/api/v1/approvals/${id}`, Approval);

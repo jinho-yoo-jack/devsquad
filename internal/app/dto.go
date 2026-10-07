@@ -64,6 +64,11 @@ type TaskResponse struct {
 	Stages           []StageResponse           `json:"stages"`
 	PendingApprovals []PendingApprovalResponse `json:"pending_approvals"`
 	LastEvent        *LastEventResponse        `json:"last_event"`
+	TokenBudget      int64                     `json:"token_budget"`
+	TokensUsed       int64                     `json:"tokens_used"`
+}
+type BudgetRequest struct {
+	TokenBudget int64 `json:"token_budget"`
 }
 type CreateTaskRequest struct {
 	ProjectID string          `json:"project_id"`

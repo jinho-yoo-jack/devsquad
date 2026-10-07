@@ -3,6 +3,7 @@ package llm
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 )
@@ -68,6 +69,9 @@ func (r Registry) Get(model string) (LLM, error) {
 	provider, name, _ := strings.Cut(model, "/")
 	return r.Providers[provider](name), nil
 }
+
+// ErrBudgetExceeded stops a stage without failing its Task; the Task is paused.
+var ErrBudgetExceeded = errors.New("token budget exceeded")
 
 type BudgetGuard interface {
 	Check(context.Context, string) error

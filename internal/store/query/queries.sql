@@ -11,9 +11,14 @@ select to_jsonb(t) from task t where id=$1 for update;
 -- name: ListTasks :many
 select to_jsonb(t) from task t where (sqlc.narg(project_id)::text is null or project_id::text=sqlc.narg(project_id)::text) and (sqlc.narg(statuses)::text[] is null or status=any(sqlc.narg(statuses)::text[])) order by created_at desc,id;
 -- name: CreateTask :exec
-insert into task(id,project_id,command,status,created_by,pipeline,workspace) values($1,$2,$3,'queued',$4,$5,$6);
+insert into task(id,project_id,command,status,created_by,pipeline,workspace,token_budget) values($1,$2,$3,'queued',$4,$5,$6,$7);
 -- name: UpdateTaskStatus :execrows
 update task set status=$2,version=version+1,updated_at=now() where id=$1 and version=$3;
+-- name: UpdateTaskBudget :execrows
+update task set token_budget=$2,version=version+1,updated_at=now() where id=$1 and version=$3;
+-- name: TaskTokensUsed :one
+-- Every token kind counts: cached input is still processed and billed.
+select coalesce(sum(input_tokens+output_tokens+cache_read_tokens+cache_write_tokens),0)::bigint from usage_record where task_id=$1;
 -- name: ListStages :many
 select to_jsonb(s) from stage s where task_id=$1 order by stage_key;
 -- name: CreateStage :exec

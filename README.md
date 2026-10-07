@@ -21,8 +21,9 @@ flowchart LR
 - 트랜잭션 이벤트 저장, 커밋 후 내부 Bus 전송, WebSocket 재생·느린 구독자 분리
 - 공식 LLM SDK, Anthropic 프롬프트 캐시, ReAct 파일 도구, 사용량 기록, `/metrics`
 - Task 상세의 에이전트별 현재 작업·도구 결과·대기 이유 표시, 실시간 갱신과 단계별 타임라인 필터
+- Task별 토큰 예산: 모델 호출 전 검사, 초과 시 자동 일시정지(`run.paused{reason:"budget"}`), 증액 후 재개
 
-Discord, GitHub clone/push/PR 생성, JWT 인증, 토큰 예산 강제는 후속 범위입니다. `publisher`는 PR 초안만 작성합니다. 현재는 인스턴스 1개를 실행하며, 같은 DB 스키마에 두 번째 서비스를 띄우면 시작을 거부합니다.
+Discord, GitHub clone/push/PR 생성, JWT 인증은 후속 범위입니다. `publisher`는 PR 초안만 작성합니다. 현재는 인스턴스 1개를 실행하며, 같은 DB 스키마에 두 번째 서비스를 띄우면 시작을 거부합니다.
 
 ## 실행
 

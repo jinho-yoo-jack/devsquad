@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createTask, decideApproval, fetchPendingApprovals, fetchProjects, fetchTask, fetchTaskApprovals, fetchTasks, taskAction, type DecideBody } from "@/lib/api/tasks";
+import { createTask, decideApproval, fetchPendingApprovals, fetchProjects, fetchTask, fetchTaskApprovals, fetchTasks, setTaskBudget, taskAction, type DecideBody } from "@/lib/api/tasks";
 import { syncTaskEvents } from "./eventSync";
 
 /** 13-Frontend 설계 §5 쿼리 키. */
@@ -36,6 +36,14 @@ export function useTaskAction(id: string) {
   return useMutation({
     mutationFn: (action: "pause" | "resume" | "cancel") => taskAction(id, action),
     onSuccess: () => { void qc.invalidateQueries({ queryKey: keys.task(id) }); void qc.invalidateQueries({ queryKey: ["tasks"] }); },
+  });
+}
+
+export function useSetBudget(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (tokenBudget: number) => setTaskBudget(id, tokenBudget),
+    onSuccess: (task) => { qc.setQueryData(keys.task(id), task); void qc.invalidateQueries({ queryKey: ["tasks"] }); },
   });
 }
 

@@ -109,7 +109,7 @@ func newHarness(t *testing.T, p string, runner stage.Runner) *harness {
 	}
 	registry := llm.Registry{ForceFake: true, Fake: fake.LLM{}}
 	if runner == nil {
-		runner = &stage.AgentRunner{Registry: registry}
+		runner = &stage.AgentRunner{Registry: registry, Budget: &app.BudgetService{Store: h.db, Emitter: h.emitter}}
 	}
 	h.runner = runner
 	h.projects = &app.ProjectService{Store: h.db}

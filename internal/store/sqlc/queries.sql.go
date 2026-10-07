@@ -166,16 +166,17 @@ func (q *Queries) CreateStage(ctx context.Context, arg CreateStageParams) error 
 }
 
 const createTask = `-- name: CreateTask :exec
-insert into task(id,project_id,command,status,created_by,pipeline,workspace) values($1,$2,$3,'queued',$4,$5,$6)
+insert into task(id,project_id,command,status,created_by,pipeline,workspace,token_budget) values($1,$2,$3,'queued',$4,$5,$6,$7)
 `
 
 type CreateTaskParams struct {
-	ID        string
-	ProjectID string
-	Command   string
-	CreatedBy string
-	Pipeline  []byte
-	Workspace *string
+	ID          string
+	ProjectID   string
+	Command     string
+	CreatedBy   string
+	Pipeline    []byte
+	Workspace   *string
+	TokenBudget int64
 }
 
 func (q *Queries) CreateTask(ctx context.Context, arg CreateTaskParams) error {
@@ -186,6 +187,7 @@ func (q *Queries) CreateTask(ctx context.Context, arg CreateTaskParams) error {
 		arg.CreatedBy,
 		arg.Pipeline,
 		arg.Workspace,
+		arg.TokenBudget,
 	)
 	return err
 }
@@ -452,6 +454,18 @@ func (q *Queries) NextSequence(ctx context.Context, id string) (int64, error) {
 	return event_seq, err
 }
 
+const taskTokensUsed = `-- name: TaskTokensUsed :one
+select coalesce(sum(input_tokens+output_tokens+cache_read_tokens+cache_write_tokens),0)::bigint from usage_record where task_id=$1
+`
+
+// Every token kind counts: cached input is still processed and billed.
+func (q *Queries) TaskTokensUsed(ctx context.Context, taskID string) (int64, error) {
+	row := q.db.QueryRow(ctx, taskTokensUsed, taskID)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const updateStage = `-- name: UpdateStage :execrows
 update stage set status=$3,plan=$4,plan_retry_no=$5,deliverable_ref=$6,deliverable_summary=$7,deliverable_retry_no=$8,last_feedback=$9,blocked_reason=$10,retry_count=$5::integer+$8::integer,version=version+1,completed_at=case when $3='approved' then now() else completed_at end where id=$1 and attempt=$2 and status=$11 and version=$12
 `
@@ -486,6 +500,24 @@ func (q *Queries) UpdateStage(ctx context.Context, arg UpdateStageParams) (int64
 		arg.OldStatus,
 		arg.OldVersion,
 	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const updateTaskBudget = `-- name: UpdateTaskBudget :execrows
+update task set token_budget=$2,version=version+1,updated_at=now() where id=$1 and version=$3
+`
+
+type UpdateTaskBudgetParams struct {
+	ID          string
+	TokenBudget int64
+	Version     int
+}
+
+func (q *Queries) UpdateTaskBudget(ctx context.Context, arg UpdateTaskBudgetParams) (int64, error) {
+	result, err := q.db.Exec(ctx, updateTaskBudget, arg.ID, arg.TokenBudget, arg.Version)
 	if err != nil {
 		return 0, err
 	}
